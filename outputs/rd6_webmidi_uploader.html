@@ -80,7 +80,7 @@ label.inline { display: inline-flex; gap: 6px; align-items: center; }
 
   <section>
     <h2><span class="n">1</span> Supply a stock file, then prepare TEST12</h2>
-    <p><strong>Automatic backup from a stock RD-6 is not implemented.</strong> If you require a device-read backup before your first install, this tool does not meet that requirement. Save a copy of a firmware <strong>file you already have</strong>; this is not a full-flash dump and does not include patterns/settings. Keep a copy on your computer before updating.</p>
+    <p><strong>Automatic backup from untouched stock firmware is unavailable.</strong> Our tested stock bootloader has no normal USB firmware-read command. <a href="https://github.com/tracelistener/rd6-scatter/blob/main/docs/READBACK.md">Investigation results</a>. If you require a device-read backup before your first install, this tool does not meet that requirement. Save a copy of a firmware <strong>file you already have</strong>; this is not a full-flash dump and does not include patterns/settings. Keep a copy on your computer before updating.</p>
     <div class="row"><label>Original firmware file (.syx) <input type="file" id="stockFile" accept=".syx"></label><button id="saveBackup" disabled>Save a copy of this file</button></div>
     <div id="backupStatus" class="status idle">Choose your own firmware file. Nothing is uploaded to a server.</div>
     <label class="inline"><input type="checkbox" id="backupSaved"> I have saved and can locate my supplied restore file.</label>

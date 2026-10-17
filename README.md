@@ -6,7 +6,7 @@ Four held performance effects for the Behringer RD-6: **Roll, Ratchet, Slice and
 
 ## Automatic stock-firmware backup is not implemented
 
-The uploader cannot read the installed firmware from a stock RD-6. Saving a
+Investigation of the actual stock bootloader found no firmware-read command in its normal USB update protocol on the revision tested. The uploader cannot read the installed firmware from untouched stock. Detailed firmware analysis stays private. Saving a
 file you supply is only a file copy. If you need a device-read backup before
 the first flash, this tool does not yet meet that requirement. See
 [readback investigation](docs/READBACK.md).

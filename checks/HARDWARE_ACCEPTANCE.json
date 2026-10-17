@@ -24,5 +24,15 @@
     "No flash readback",
     "No measured RAM liveness or interrupt/analog timing proof",
     "External clock/chain and fast-tempo Ratchet issue remain unverified/deferred; no full MCU emulation"
-  ]
+  ],
+  "diagnostic_followup": {
+    "date": "2026-10-16",
+    "temporary_build": "TEST13_BOOT_READ",
+    "two_matching_10KB_bootloader_reads": true,
+    "restored_build": "TEST12_GLITCH",
+    "restore_378_ACKs_and_383_byte_exact_frames": true,
+    "post_reboot_marker12_and_effect_off_verified": true,
+    "post_restore_listening": "pending",
+    "stock_first_install_backup": false
+  }
 }
