@@ -147,6 +147,10 @@ The project examined the actual stock bootloader of the test unit. To read it, a
 
 That bootloader's USB update protocol has no command to read firmware, and its USB configuration exposes no standard DFU readback interface. This applies to the revision examined, not necessarily to every RD-6, and unknown commands were not tried on hardware.
 
+The normal application firmware has no way either. Its SysEx handler was checked offline in stock 1.0.4, 1.0.5 and 1.0.6 on 2026-10-17. All 128 command values were run on both of its input paths in each version, 768 runs in all. The settings reply reads fixed RAM fields. The pattern read was run with all 128 group values and all 128 pattern values in each version, 49,152 combinations: it accepts only 2 groups and 16 patterns and returns a 22-byte pattern record. Neither read takes a flash address or a length, so neither can return firmware.
+
+The same handler also has factory and diagnostic commands, and some of them change the device, so unknown commands weren't sent to hardware. The captured bootloader's handler was checked again offline and still has no command to read firmware. These checks can't rule out every other handler or a flaw in a parser, and they say nothing about other firmware versions. So there is still no verified way to back up the firmware itself, and a downloaded official file is not a copy of the device.
+
 The diagnostic doesn't help with a first install either, because custom code has to be installed before it can read anything. A true backup before the first flash would need another, independently verified way in, such as hardware debugging tools.
 
 ## Verify it yourself
