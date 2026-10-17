@@ -32,8 +32,9 @@ async function fresh(browser, base) {
 }
 const text = (page, id) => page.textContent(id);
 async function loadPinned(page) {
+  await page.setInputFiles('#stockFile',[]);
   await page.setInputFiles('#stockFile',STOCK);
-  await page.waitForFunction(()=>/SHA-256/.test(document.querySelector('#backupStatus').textContent));
+  await page.waitForFunction(()=>S.backup?.hash===STOCK_SHA && !S.backupDownloaded && !document.querySelector('#backupSaved').checked);
   if(!await page.isDisabled('#loadPinned'))throw new Error('Preparation must wait for backup');
   const [download]=await Promise.all([page.waitForEvent('download'),page.click('#saveBackup')]);
   const backup=JSON.parse(fs.readFileSync(await download.path(),'utf8'));
@@ -96,6 +97,18 @@ const events = page => page.evaluate(() => S.events.map(e => e.event));
     check('restore button is clearly labeled',await text(page,'#send')==='Restore selected firmware');
     await page.check('#backupSaved');await enterUpdate(page);await send(page);
     check('complete simulated stock restore returns to application',/^Done/.test(await text(page,'#xferStatus')) && await page.evaluate(()=>S.mode==='restore' && S.image.hash===STOCK_SHA && S.events.some(e=>e.event==='sim_stream_check' && e.byte_exact)));
+    const stock106=process.env.RD6_STOCK_106_SYX;
+    if(stock106){
+      await page.setInputFiles('#restoreFile',stock106);
+      await page.waitForFunction(()=>/Pinned: Stock RD-6 1.0.6/.test(document.querySelector('#fileStatus').textContent));
+      check('stock1.0.6 hash recognized',await page.evaluate(()=>S.image.version==='1.0.6'));
+      await page.check('#backupSaved');await enterUpdate(page);await send(page);
+      check('stock1.0.6 restore verifies version1.0.6',await page.evaluate(()=>Sim.version==='1.0.6' && S.events.some(e=>e.event==='application_version_reply_after_transfer' && e.version==='1.0.6')) && /^Done/.test(await text(page,'#xferStatus')));
+      await page.click('#identity');await page.waitForFunction(()=>document.querySelector('#abort').disabled);
+      check('identity accepts stock1.0.6',/Application mode, version 1.0.6/.test(await text(page,'#devStatus')));
+      await loadPinned(page);await enterUpdate(page);await send(page);
+      check('TEST12 reinstalls from stock1.0.6 and verifies1.0.5',await page.evaluate(()=>Sim.version==='1.0.5' && S.image.hash===TARGET_SHA && S.events.some(e=>e.event==='application_version_reply_after_transfer' && e.version==='1.0.5')) && /^Done/.test(await text(page,'#xferStatus')));
+    }
     const damaged={...backup,sha256:'0'.repeat(64)};
     await page.setInputFiles('#restoreFile',{name:'damaged.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(damaged))});
     await page.waitForFunction(()=>/checksum mismatch/.test(document.querySelector('#backupStatus').textContent));

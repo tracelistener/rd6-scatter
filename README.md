@@ -27,7 +27,7 @@ To run locally, clone/download this repo, run `python -m http.server 8000` in it
 
 ## Restore stock firmware
 
-Under **Restore stock / saved firmware**, open your original stock1.0.5
+Under **Restore stock / saved firmware**, open your original stock1.0.5 or1.0.6
 `.syx` or the saved restore-file JSON. Confirm it is saved, stop playback,
 enter update mode, then choose **Restore selected firmware**. The file is
 validated and transmitted with the same ACK pacing as installation.
@@ -53,7 +53,7 @@ Roll repeats captured hits/chords; Ratchet repeats programmed hits; Slice makes 
 
 On the test unit, the user passed all Slice/Cut depths, Roll straight/triplet, Ratchet, hold/release, latch, effect-off, all direction buttons, returning to Reverse after Roll, normal Play/Stop and one power cycle. The transfer had378 firmware ACKs and383 byte-exact transmitted file frames; build12 status confirmed execution. These are listening/selected-path checks, not laboratory timing measurements.
 
-External clock/chain, worst-case interrupt timing and RAM liveness remain unmeasured. An earlier fast-tempo Ratchet glitch remains unresolved/deferred. USB-only restoration is not guaranteed. The browser transfer engine is simulator-tested; the hardware installation used the matching Python ACK-paced protocol.
+External clock/chain, worst-case interrupt timing and RAM liveness remain unmeasured. An earlier fast-tempo Ratchet glitch remains unresolved/deferred. USB-only restoration is not guaranteed. The browser transfer engine passed22 simulator checks, and the actual browser uploader restored stock1.0.6 on the test unit with378 ACKs and a matching post-reboot version reply. The user confirmed normal stock Play/Stop. TEST12 was then reinstalled through the browser with383 byte-exact file frames,378 firmware ACKs and build12 status showing stopped, Scatter off and Forward. The final post-round-trip Roll listening check is pending.
 
 ## Source and development
 
@@ -63,6 +63,6 @@ Prepare a file without a browser: `python scripts/apply_patch.py /path/to/your/s
 
 Verify compilation of the three TEST12 payloads with Python3.12: install `source/requirements.txt`, then run `python -I source/verify_payloads.py`. This verifies our payload objects; it is not a full firmware rebuild or full MCU emulator.
 
-Browser regression tests: install Playwright and its Chromium, set `RD6_STOCK_SYX` to your own stock1.0.5 file, then run `node outputs/check_rd6_webmidi_uploader.cjs`. Optionally set `RD6_CHROME_PATH` to a Chrome executable. Tests use only the simulated RD-6.
+Browser regression tests: install Playwright and its Chromium, set `RD6_STOCK_SYX` to your own stock1.0.5 file, then run `node outputs/check_rd6_webmidi_uploader.cjs`. Set `RD6_STOCK_106_SYX` to your own stock1.0.6 file to include the full22-check restore/reinstall suite. Optionally set `RD6_CHROME_PATH` to a Chrome executable. Tests use only the simulated RD-6.
 
 This is an independent experiment, not a Behringer or Roland product. Original vendor firmware is not distributed here. The public repository starts with a clean history; the earlier research history remains private.

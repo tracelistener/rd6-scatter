@@ -13,7 +13,7 @@ There is no verified USB firmware-readback command in this project. It cannot re
 3. Stop playback, connect USB, query identity and enter update mode normally.
 4. Review the loaded file's name/hash, acknowledge the transfer and choose **Restore selected firmware**. The transfer is logged as `restore`.
 
-The known stock1.0.5 file is recognized automatically. An unpinned structurally valid firmware file requires the existing typed hash confirmation. A damaged backup is rejected and cannot retain authority from a previously selected file.
+The known stock1.0.5 and1.0.6 files are recognized automatically. After transfer, the application reply must match the selected file header version. TEST12 preparation still requires stock1.0.5; stock1.0.6 is supported as a restore target, not as a patch input. An unpinned structurally valid firmware file requires the existing typed hash confirmation. A damaged backup is rejected and cannot retain authority from a previously selected file.
 
 Restoration uses the same write protocol as installation. It depends on a working application/update interface; it is not a promise of recovery after an interrupted flash. Do not keep retrying a partial update blindly. A full MCU backup/recovery would require separately verified hardware debugging access and tools.
 
@@ -21,4 +21,4 @@ Restoration uses the same write protocol as installation. It depends on a workin
 
 Full `.bin`/`.syx` images, private backups and raw transfer logs are excluded from the public repository and its history. The browser fetches only the TEST12 patch; the user supplies the stock file locally. Keep your downloaded restore files private.
 
-The full stock-file restore path is covered by a simulated transfer test, including378 ACKs, byte-exact stock frames and post-transfer application response. A physical stock restoration has not yet been tested by this project; this does not establish brick recovery.
+The full stock-file restore path is covered by a simulated transfer test, including378 ACKs, byte-exact stock frames and post-transfer application response. On 2026-10-16, the actual browser uploader restored stock1.0.6 on the test unit: all383 file frames matched,378 firmware transactions were acknowledged, and the application reported1.0.6 after reboot. The listening check and return to TEST12 are pending. This does not establish brick recovery.

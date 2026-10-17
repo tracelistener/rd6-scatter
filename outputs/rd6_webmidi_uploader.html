@@ -170,7 +170,15 @@ const PREFIX  = hex('f0 00 20 32 00 01 0d 00');
 const ACK     = cat(PREFIX, hex('01 00 00 f7'));
 const MODEL   = cat(PREFIX, hex('05 50 30 45 34 47 00 f7'));
 const PRODUCT = cat(PREFIX, hex('07 52 48 59 54 00 f7'));
-const VERSION_105 = cat(PREFIX, hex('09 00 01 00 05 f7'));
+function versionReply(version) {
+  const parts=version.split('.').map(Number);
+  if(parts.length!==3||parts.some(v=>!Number.isInteger(v)||v<0||v>127))throw new Error('Invalid firmware version');
+  return cat(PREFIX,hex('09 00'),Uint8Array.from(parts),hex('f7'));
+}
+function applicationVersion(frame) {
+  if(frame.length!==14 || !eq(frame.subarray(0,8),PREFIX) || frame[8]!==9 || frame[9]!==0 || frame[13]!==247)return null;
+  return Array.from(frame.subarray(10,13)).join('.');
+}
 const Q_VERSION = cat(PREFIX, hex('08 f7'));
 const Q_UPDATE_MODE = cat(PREFIX, hex('08 40 f7'));
 const ENTER_UPDATE = cat(PREFIX, hex('03 30 f7'));
@@ -179,6 +187,8 @@ const REBOOT_WAIT_MS = 10000;       // vendor text: at least ten seconds
 
 // Pinned images. Only these are accepted without the explicit unpinned override.
 const PINNED = {
+  '4446914dffce8152dc7f7c0065de52d266f062a6499a22a8fef36b221982cfc3':
+    { name: 'Stock RD-6 1.0.6', bin: 'e20968a504ccf4302039cb99cfe647acab4f8bd12515b87a8828fd61a46d1656', allowed: true },
   '9bc1c3a74da476c6694724314d275030a7debb4299c561d06cf56f4e55b540ef':
     { name: 'TEST12_GLITCH (current tested build)', bin: 'bfea2b995c8ce5caea87ab68bae48ae28bbe78f5de4c79b5d7e6bdfc3ddec826', allowed: true },
   '7bbf8ef8e9efd4378178389bbb8df07ce91112252bb31e4e5262799c65631155':
@@ -374,8 +384,8 @@ const WebMidiTransport = {
 
 // Simulated RD-6, modelled on the TEST01–TEST03 transfer logs.
 const Sim = {
-  mode: 'app', present_: true, session: null, received: [], blocks: 0, dupPending: false,
-  reset() { this.mode = 'app'; this.present_ = true; this.received = []; this.blocks = 0; this.update(); },
+  mode: 'app', version: '1.0.5', present_: true, session: null, received: [], blocks: 0, dupPending: false,
+  reset() { this.mode = 'app'; this.version='1.0.5'; this.present_ = true; this.received = []; this.blocks = 0; this.update(); },
   update(extra = '') { status('simStatus', 'idle', `Simulated device: ${this.present_ ? this.mode + ' mode' : 'disconnected (USB re-enumerating)'}; firmware frames received ${this.received.length}. ${extra}`); },
   reply(f, delay) { const s = this.session; setTimeout(() => { if (this.present_ && s === this.session) s._rx(f); }, delay); },
   disconnect(ms, then) { this.present_ = false; this.session = null; this.update(); setTimeout(() => { this.present_ = true; then(); this.update(); }, ms); },
@@ -391,7 +401,7 @@ const Sim = {
     const fault = $('simFault').value, at = parseInt($('simBlock').value, 10);
     const quick = () => 1 + Math.random();
     if (this.mode === 'app' || fault === 'appmode') {
-      if (body === '08' || body === '08 40') return this.reply(VERSION_105, 8 + Math.random() * 12);
+      if (body === '08' || body === '08 40') return this.reply(versionReply(this.version), 8 + Math.random() * 12);
       if (body === '03 30' && fault !== 'appmode') {
         this.reply(ACK, quick()); this.reply(ACK, 3);
         setTimeout(() => this.disconnect(400, () => { this.mode = 'update'; this.received = []; }), 1050);
@@ -412,7 +422,7 @@ const Sim = {
       if (block === at && fault === 'dup') this.reply(ACK, lat + 3);
       if (block === 376) {
         const match = S.image && this.received.length === 378 && this.received.every((r, i) => eq(r, S.image.frames[5 + i]));
-        setTimeout(() => this.disconnect(800, () => { this.mode = 'app'; }), lat + 20);
+        setTimeout(() => this.disconnect(800, () => { this.mode = 'app'; this.version=S.image.version; }), lat + 20);
         this.update(match ? 'Stream matched the loaded file byte-for-byte.' : 'Stream did NOT match the loaded file.');
         log('sim_stream_check', { byte_exact: match });
         return;
@@ -454,11 +464,11 @@ async function doIdentity() {
     if (pre.length) log('pre_query_traffic', { count: pre.length });
     s.send(Q_VERSION);
     const replies = await s.collect(1000);
-    const isStock = replies.some(r => eq(r, VERSION_105));
+    const observedVersion = replies.map(applicationVersion).find(v=>v!==null);
     const isUpdateAck = replies.some(r => eq(r, ACK));
-    if (isStock) { S.deviceMode = 'application'; log('stock_identity_confirmed'); status('devStatus', 'ok', 'Application mode, version 1.0.5. Test images keep 1.0.5, so this does not tell you which image is installed.'); }
+    if (observedVersion) { S.deviceMode='application'; log('stock_identity_confirmed',{version:observedVersion}); status('devStatus','ok',`Application mode, version ${observedVersion}. Version alone does not identify a custom build.`); }
     else if (isUpdateAck) { S.deviceMode = 'update'; status('devStatus', 'warn', 'Device answered 08 with an ACK. It looks like it is already in update mode.'); }
-    else { S.deviceMode = 'unknown'; status('devStatus', 'bad', 'No 1.0.5 version reply: ' + (replies.map(toHex).join(' | ') || 'no reply')); }
+    else { S.deviceMode = 'unknown'; status('devStatus', 'bad', 'No application version reply: ' + (replies.map(toHex).join(' | ') || 'no reply')); }
   }).catch(e => status('devStatus', 'bad', e.message));
 }
 
@@ -468,8 +478,9 @@ async function doEnterUpdate() {
     let s = keep(await openSession());
     await s.collect(200);
     s.send(Q_VERSION);
-    if (!(await s.collect(1000)).some(r => eq(r, VERSION_105))) throw new Error('expected stock 1.0.5 identity not received; stopping (already in update mode?)');
-    log('stock_identity_confirmed');
+    const observedVersion=(await s.collect(1000)).map(applicationVersion).find(v=>v!==null);
+    if (!observedVersion) throw new Error('expected application identity not received; stopping (already in update mode?)');
+    log('stock_identity_confirmed',{version:observedVersion});
     s.send(ENTER_UPDATE);
     status('devStatus', 'warn', 'Entry sent; waiting for the device to re-enumerate (up to 15 s)...');
     // Watch presence from the moment of sending: on hardware the port vanished ~1.05 s
@@ -529,14 +540,9 @@ async function doTransfer(preambleOnly) {
     for (let left = wait; left > 0; left -= 1000) { status('xferStatus', 'warn', `All 378 firmware frames acknowledged. Waiting for reboot... ${Math.ceil(left / 1000)} s`); await sleep(Math.min(1000, left)); }
     s = keep(await openSession());
     await s.collect(250);
-    let reply;
-    if (S.image.pin) { reply = toHex(VERSION_105); log('application_version_reply_after_transfer', { latency_ms: await exchange(s, Q_VERSION, VERSION_105), note: 'Version remains 1.0.5; this alone does not identify the image or prove Scatter behavior.' }); }
-    else {
-      s.send(Q_VERSION); const r = await s.collect(1000);
-      reply = r.map(toHex).join(' | ');
-      if (!r.length || r[0][8] !== 0x09) throw new Error('no application version reply after reboot: ' + (reply || 'none'));
-      log('application_version_reply_after_transfer', { reply });
-    }
+    const expectedReply=versionReply(S.image.version);
+    const reply=toHex(expectedReply);
+    log('application_version_reply_after_transfer',{latency_ms:await exchange(s,Q_VERSION,expectedReply),version:S.image.version,note:'Reply matches the file header version; this is not flash readback or custom-build identification.'});
     S.deviceMode = 'application';
     status('xferStatus', 'ok', `Done. All 378 firmware frames were ACKed and the application answered after reboot (${reply}). ${S.restoreMode ? 'Stock/saved-file restore transfer completed. Check normal Play/Stop.' : 'Check normal Play/Stop and the Scatter controls.'} Download the evidence.`);
     status('devStatus', 'ok', 'Application mode (post-transfer reply).');
@@ -561,7 +567,7 @@ function refresh() {
   document.body.classList.toggle('simulating', $('useSim').checked);
 }
 
-$('file').addEventListener('change', async e => { const f = e.target.files[0]; if (f) await loadImage(new Uint8Array(await f.arrayBuffer()), f.name); });
+$('file').addEventListener('change', async e => { const f=e.target.files[0];if(!f)return;S.image=null;S.restoreMode=false;status('fileStatus','idle','Reading selected firmware file...');refresh();await loadImage(new Uint8Array(await f.arrayBuffer()),f.name); });
 function downloadBytes(bytes, name, type) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([bytes], {type})); a.download = name; a.click();
@@ -577,7 +583,7 @@ async function setBackup(bytes, label, restored=false) {
   refresh();
 }
 $('stockFile').addEventListener('change',async e=>{
-  try { const f=e.target.files[0]; if(f) await setBackup(new Uint8Array(await f.arrayBuffer()),f.name); }
+  try { const f=e.target.files[0];if(!f)return;S.backup=null;S.backupDownloaded=false;S.image=null;S.restoreMode=false;$('backupSaved').checked=false;status('backupStatus','idle','Reading supplied firmware file...');refresh();await setBackup(new Uint8Array(await f.arrayBuffer()),f.name); }
   catch(e){status('backupStatus','bad',e.message);}
 });
 $('saveBackup').addEventListener('click',()=>{

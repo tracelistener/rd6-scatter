@@ -34,5 +34,20 @@
     "post_reboot_marker12_and_effect_off_verified": true,
     "post_restore_listening": "user passed normal Play/Stop and held Roll/release",
     "stock_first_install_backup": false
+  },
+  "stock_restore_round_trip": {
+    "date": "2026-10-16",
+    "transport": "Actual browser uploader with real Chrome WebMIDI, not simulator",
+    "stock_version": "1.0.6",
+    "stock_383_byte_exact_frames_and_378_ACKs": true,
+    "stock_post_reboot_version": "1.0.6",
+    "stock_listening": "User passed normal Play/Stop and left stopped",
+    "returned_build": "TEST12_GLITCH",
+    "TEST12_383_byte_exact_frames_and_378_ACKs": true,
+    "TEST12_post_reboot_marker": 12,
+    "TEST12_defaults": "Stopped, Scatter layer off, latch off, Forward",
+    "TEST12_final_listening": "Pending",
+    "entry_observation": "Chrome missed the stock-restore entry disconnect; separate read-only update-mode guard confirmed mode before transfer. The uploader also checked update mode before sending any firmware header.",
+    "scope": "One working test unit; no flash readback or interrupted-flash recovery proof"
   }
 }

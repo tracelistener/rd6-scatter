@@ -30,9 +30,11 @@ Open your original stock `.syx` or saved restore-file JSON under **Restore
 stock / saved firmware** in the uploader. Confirm the file is saved, stop
 playback, enter update mode and choose **Restore selected firmware**.
 
-The complete stock-file transfer path passed simulator checks. A physical
-stock-image restore remains untested; the physical return from the diagnostic
-to TEST12 was verified. Restore still requires a working update interface,
+The complete stock-file transfer path passed simulator checks. On 2026-10-16,
+the actual browser uploader also restored stock1.0.6 on the test unit, with
+383 byte-exact file frames,378 firmware ACKs and a1.0.6 post-reboot reply.
+The user confirmed normal stock Play/Stop. TEST12 was then reinstalled through the browser with383 byte-exact file frames,378 firmware ACKs and build12 status showing stopped, Scatter off and Forward. The final post-round-trip Roll listening check is pending. The earlier return
+from the diagnostic to TEST12 was verified. Restore still requires a working update interface,
 so it is not guaranteed brick recovery. Saving a supplied file remains a
 file copy, not a backup read from the device. See
 [restore instructions](BACKUP_RESTORE.md).
