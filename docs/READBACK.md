@@ -36,3 +36,14 @@ still runs TEST12, and is not an untouched-stock first-install test unit.
 The current save/open controls handle supplied files only. Automatic stock
 readback must not be advertised as available until actual bytes can be read,
 verified, saved and shown to form a usable restore image.
+
+## Next investigation step
+
+A private TEST13 diagnostic has been built for the already-custom test unit.
+It adds a stopped-only fixed-range read of the untouched10KB bootloader, with
+chunk echoes, checksums and a host-side comparison of two full reads. The
+purpose is to obtain the missing bootloader code for analysis of its stock
+USB commands. The diagnostic itself does not solve first-install backup:
+installing it would change the application first. Physical installation/read
+remain pending. TEST12 is kept as the known working restore target. Neither
+the diagnostic full image nor any bootloader dump is published here.

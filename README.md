@@ -25,6 +25,15 @@ The uploader cannot dump installed firmware over USB. Its backup is a copy of a 
 
 To run locally, clone/download this repo, run `python -m http.server 8000` in its root, then open `http://localhost:8000/outputs/rd6_webmidi_uploader.html`. No dependencies are needed for the uploader. A simulator is included and opens no MIDI ports.
 
+## Restore stock firmware
+
+Under **Restore stock / saved firmware**, open your original stock1.0.5
+`.syx` or the saved restore-file JSON. Confirm it is saved, stop playback,
+enter update mode, then choose **Restore selected firmware**. The file is
+validated and transmitted with the same ACK pacing as installation.
+This requires a functioning update interface; it is not automatic backup
+or guaranteed recovery from an interrupted flash.
+
 ## Play
 
 In PATTERN PLAY while playing, hold FUNCTION and press TAP to enter Scatter. Release both; a fresh TAP holds the selected effect, and release resumes the running pattern unless latched.

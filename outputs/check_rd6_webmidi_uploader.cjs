@@ -63,7 +63,7 @@ const events = page => page.evaluate(() => S.events.map(e => e.event));
   const base = `http://127.0.0.1:${server.address().port}`;
   const browser = await chromium.launch(process.env.RD6_CHROME_PATH ? {executablePath:process.env.RD6_CHROME_PATH} : {});
   const results = [];
-  const check = (name, pass, detail = '') => { results.push({ name, pass, detail }); console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? '  — ' + detail : ''}`); };
+  const check = (name, pass, detail = '') => { results.push({ name, pass, detail }); console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? '  â€” ' + detail : ''}`); };
 
   try {
     // 1. Happy path: identity, entry, full transfer, reboot reply, byte-exact stream.
@@ -93,6 +93,9 @@ const events = page => page.evaluate(() => S.events.map(e => e.event));
     await page.setInputFiles('#restoreFile',{name:'restore.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(backup))});
     await page.waitForFunction(()=>/Restore:/.test(document.querySelector('#fileStatus').textContent));
     check('saved restore file round-trips to exact stock firmware',await page.evaluate(()=>S.image.hash===STOCK_SHA));
+    check('restore button is clearly labeled',await text(page,'#send')==='Restore selected firmware');
+    await page.check('#backupSaved');await enterUpdate(page);await send(page);
+    check('complete simulated stock restore returns to application',/^Done/.test(await text(page,'#xferStatus')) && await page.evaluate(()=>S.mode==='restore' && S.image.hash===STOCK_SHA && S.events.some(e=>e.event==='sim_stream_check' && e.byte_exact)));
     const damaged={...backup,sha256:'0'.repeat(64)};
     await page.setInputFiles('#restoreFile',{name:'damaged.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(damaged))});
     await page.waitForFunction(()=>/checksum mismatch/.test(document.querySelector('#backupStatus').textContent));
@@ -109,7 +112,7 @@ const events = page => page.evaluate(() => S.events.map(e => e.event));
     check('application-mode reply refused after one query', /ABORTED: unexpected/.test(await text(page, '#xferStatus')) && txs === 1, `tx=${txs}`);
     await page.close();
 
-    // 3–5. Faults mid-image: NACK, silence (timeout) and duplicate ACK must abort without retry.
+    // 3â€“5. Faults mid-image: NACK, silence (timeout) and duplicate ACK must abort without retry.
     for (const [fault, re] of [['nack', /unexpected, failed or duplicate/], ['silent', /timeout/], ['dup', /unsolicited|duplicate|unexpected/]]) {
       page = await fresh(browser, base);
       await loadPinned(page);

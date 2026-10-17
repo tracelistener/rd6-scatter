@@ -1,7 +1,7 @@
 {
-  "status": "passed_browser_simulator_backup_patch_and_transfer_checks",
-  "checks": 16,
-  "passed": 16,
+  "status": "passed_browser_simulator_backup_patch_transfer_and_stock_restore",
+  "checks": 18,
+  "passed": 18,
   "date": "2026-10-16",
   "scope": "Headless Chrome simulator only; no MIDI access or device writes",
   "cases": [
@@ -16,6 +16,8 @@
     "Application-mode refusal before setup",
     "NACK timeout and duplicate ACK abort without retry",
     "Modified patch target checksum refusal",
-    "Modified firmware requires explicit override"
+    "Modified firmware requires explicit override",
+    "Explicit restore action and confirmation",
+    "Complete byte-exact stock restore transfer,378 ACKs and application reply"
   ]
 }

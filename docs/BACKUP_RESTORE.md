@@ -11,7 +11,7 @@ There is no verified USB firmware-readback command in this project. It cannot re
 1. Open the uploader and choose your saved JSON under **Restore a saved backup**, or supply the original `.syx` there.
 2. The tool verifies its checksum, framing and firmware structure. Confirm your backup is saved.
 3. Stop playback, connect USB, query identity and enter update mode normally.
-4. Review the loaded file's name/hash, acknowledge the transfer and send it.
+4. Review the loaded file's name/hash, acknowledge the transfer and choose **Restore selected firmware**. The transfer is logged as `restore`.
 
 The known stock1.0.5 file is recognized automatically. An unpinned structurally valid firmware file requires the existing typed hash confirmation. A damaged backup is rejected and cannot retain authority from a previously selected file.
 
@@ -20,3 +20,5 @@ Restoration uses the same write protocol as installation. It depends on a workin
 ## Public distribution
 
 Full `.bin`/`.syx` images, private backups and raw transfer logs are excluded from the public repository and its history. The browser fetches only the TEST12 patch; the user supplies the stock file locally. Keep your downloaded restore files private.
+
+The full stock-file restore path is covered by a simulated transfer test, including378 ACKs, byte-exact stock frames and post-transfer application response. A physical stock restoration has not yet been tested by this project; this does not establish brick recovery.

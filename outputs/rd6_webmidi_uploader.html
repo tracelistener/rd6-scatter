@@ -85,7 +85,8 @@ label.inline { display: inline-flex; gap: 6px; align-items: center; }
     <div id="backupStatus" class="status idle">Choose your own firmware file. Nothing is uploaded to a server.</div>
     <label class="inline"><input type="checkbox" id="backupSaved"> I have saved and can locate my supplied restore file.</label>
     <p>To prepare TEST12, supply your own stock RD-6 1.0.5 SysEx file. Only the patch is distributed here. Restoration requires the RD-6 to still accept updates; this is not guaranteed recovery.</p>
-    <div class="row"><label>Open a saved restore file <input type="file" id="restoreFile" accept=".json,.syx"></label></div>
+    <p><strong>Restore:</strong> choose your saved JSON or original stock .syx below, enter update mode, then use <strong>Restore selected firmware</strong>. This reinstalls that file; it does not recover firmware from the device.</p>
+    <div class="row"><label>Restore stock / saved firmware <input type="file" id="restoreFile" accept=".json,.syx"></label></div>
     <div class="row">
       <label>Or choose a prepared firmware file <input type="file" id="file" accept=".syx"></label>
       <button id="loadPinned" title="Apply the patch locally to your stock1.0.5 file" disabled>Prepare TEST12 locally</button>
@@ -194,7 +195,7 @@ const STOCK_SHA = '29fc1fb89a951a864e294764d2fe8bba4ad1ce890f9c308f0994474932157
 const TARGET_SHA = '9bc1c3a74da476c6694724314d275030a7debb4299c561d06cf56f4e55b540ef';
 
 // ---------------------------------------------------------------- logging
-const S = { backup: null, backupDownloaded: false, image: null, midi: null, transport: null, busy: false, abort: false, events: [], started: null, t0: performance.now(), deviceMode: 'unknown' };
+const S = { backup: null, backupDownloaded: false, restoreMode: false, image: null, midi: null, transport: null, busy: false, abort: false, events: [], started: null, t0: performance.now(), deviceMode: 'unknown' };
 const $ = id => document.getElementById(id);
 function log(event, values = {}) {
   const row = { event, elapsed_ms: Math.round((performance.now() - S.t0) * 1000) / 1000, ...values };
@@ -276,7 +277,7 @@ async function analyse(bytes) {
       ok(stack >= 0x20000000 && stack < 0x20004000 && reset >= 0x08000001 && reset < 0x08020000 && (reset & 1),
         `Cortex-M vectors plausible for GD32F350 (16 KB SRAM, 128 KB flash): SP 0x${stack.toString(16)}, reset 0x${reset.toString(16)}`);
       binHash = await sha256(decoded);
-      if (pin) ok(binHash === pin.bin, `decoded image SHA-256 matches pinned .bin (${pin.bin.slice(0, 12)}Ã¢â‚¬Â¦)`);
+      if (pin) ok(binHash === pin.bin, `decoded image SHA-256 matches pinned .bin (${pin.bin.slice(0, 12)}...)`);
     }
   }
   const valid = checks.every(c => c.pass);
@@ -284,6 +285,7 @@ async function analyse(bytes) {
 }
 
 async function loadImage(bytes, label) {
+  S.image = null; S.restoreMode = label.startsWith('Restore:'); refresh();
   const a = await analyse(bytes);
   S.image = a;
   const list = $('fileChecks'); list.innerHTML = '';
@@ -469,7 +471,7 @@ async function doEnterUpdate() {
     if (!(await s.collect(1000)).some(r => eq(r, VERSION_105))) throw new Error('expected stock 1.0.5 identity not received; stopping (already in update mode?)');
     log('stock_identity_confirmed');
     s.send(ENTER_UPDATE);
-    status('devStatus', 'warn', 'Entry sent; waiting for the device to re-enumerate (up to 15 s)Ã¢â‚¬Â¦');
+    status('devStatus', 'warn', 'Entry sent; waiting for the device to re-enumerate (up to 15 s)...');
     // Watch presence from the moment of sending: on hardware the port vanished ~1.05 s
     // and returned ~1.45 s after entry, so a fixed 1 s collect first could miss the gap.
     const t = performance.now(); let gone = false, back = false, acks = 0;
@@ -491,10 +493,10 @@ async function doEnterUpdate() {
 
 async function doTransfer(preambleOnly) {
   if (!imageSendable() || !S.backup || !S.backupDownloaded || !$('backupSaved').checked || !$('understand').checked) return;
-  if (!preambleOnly && !confirm(`Write ${S.image.pin ? S.image.pin.name : 'UNPINNED image ' + S.image.hash.slice(0, 16)} to the RD-6?\n\nNo automatic retry. Do not unplug until the reboot check finishes.`)) return;
+  if (!preambleOnly && !confirm(`${S.restoreMode ? 'Restore' : 'Write'} ${S.image.pin ? S.image.pin.name : 'UNPINNED image ' + S.image.hash.slice(0, 16)} to the RD-6?\n\nNo automatic retry. Do not unplug until the reboot check finishes.`)) return;
   S.events = S.events.filter(e => e.event === 'image_loaded').slice(-1);
   S.started = new Date().toISOString(); S.t0 = performance.now(); $('log').textContent = '';
-  S.mode = preambleOnly ? 'preamble_only' : 'transfer';
+  S.mode = preambleOnly ? 'preamble_only' : S.restoreMode ? 'restore' : 'transfer';
   const frames = S.image.frames;
   const prog = $('prog'); prog.value = 0;
   let wakeLock = null;
@@ -505,7 +507,7 @@ async function doTransfer(preambleOnly) {
     // Stock application answers VERSION; observed update session answers ACK.
     await exchange(s, Q_UPDATE_MODE, ACK);
     log('observed_update_mode_response_confirmed');
-    status('xferStatus', 'warn', 'Update mode confirmed. Sending preambleÃ¢â‚¬Â¦');
+    status('xferStatus', 'warn', 'Update mode confirmed. Sending preamble...');
     const expected = [MODEL, PRODUCT, ACK, ACK, ACK];
     for (let i = 0; i < 5; i++) { log('preamble_reply', { frame_index: i, latency_ms: await exchange(s, frames[i], expected[i]) }); prog.value = i + 1; }
     if ((await s.collect(500)).length) throw new Error('extra setup reply; refusing to use it as firmware ACK');
@@ -516,7 +518,7 @@ async function doTransfer(preambleOnly) {
       const l = await exchange(s, frames[i], ACK); lat.push(l);
       log('firmware_ack', { frame_index: i, block: i >= 6 ? i - 6 : null, latency_ms: l });
       prog.value = i + 1;
-      if (i % 8 === 0 || i === frames.length - 1) status('xferStatus', 'warn', `WritingÃ¢â‚¬Â¦ ${i - 4} / 378 firmware frames acknowledged. Do not unplug.`);
+      if (i % 8 === 0 || i === frames.length - 1) status('xferStatus', 'warn', `Writing... ${i - 4} / 378 firmware frames acknowledged. Do not unplug.`);
     }
     // ACKs carry no sequence number: a late duplicate or trailing NACK would otherwise go unseen.
     const trailing = await s.collect(500);
@@ -524,7 +526,7 @@ async function doTransfer(preambleOnly) {
     log('all_firmware_frames_acknowledged', { count: lat.length, min_ms: Math.min(...lat), max_ms: Math.max(...lat), note: 'ACKs prove transfer acceptance, not successful execution.' });
     s.close();
     const wait = ($('useSim').checked && $('simFast').checked) ? 1500 : REBOOT_WAIT_MS;
-    for (let left = wait; left > 0; left -= 1000) { status('xferStatus', 'warn', `All 378 firmware frames acknowledged. Waiting for rebootÃ¢â‚¬Â¦ ${Math.ceil(left / 1000)} s`); await sleep(Math.min(1000, left)); }
+    for (let left = wait; left > 0; left -= 1000) { status('xferStatus', 'warn', `All 378 firmware frames acknowledged. Waiting for reboot... ${Math.ceil(left / 1000)} s`); await sleep(Math.min(1000, left)); }
     s = keep(await openSession());
     await s.collect(250);
     let reply;
@@ -536,7 +538,7 @@ async function doTransfer(preambleOnly) {
       log('application_version_reply_after_transfer', { reply });
     }
     S.deviceMode = 'application';
-    status('xferStatus', 'ok', `Done. All 378 firmware frames were ACKed and the application answered after reboot (${reply}). Now run the physical checks in docs/STATUS.md and download the evidence.`);
+    status('xferStatus', 'ok', `Done. All 378 firmware frames were ACKed and the application answered after reboot (${reply}). ${S.restoreMode ? 'Stock/saved-file restore transfer completed. Check normal Play/Stop.' : 'Check normal Play/Stop and the Scatter controls.'} Download the evidence.`);
     status('devStatus', 'ok', 'Application mode (post-transfer reply).');
   }).catch(e => status('xferStatus', 'bad', 'ABORTED: ' + e.message + '\nNo automatic retry. Download the log before doing anything else.'));
   try { await wakeLock?.release(); } catch (_) {}
@@ -553,6 +555,7 @@ function refresh() {
   $('enterUpdate').disabled = S.busy || !haveDev;
   const ready = !S.busy && saved && haveDev && imageSendable() && $('understand').checked;
   $('preamble').disabled = !ready; $('send').disabled = !ready;
+  $('send').textContent = S.restoreMode ? 'Restore selected firmware' : 'Send firmware';
   $('abort').disabled = !S.busy;
   $('simPanel').hidden = !$('useSim').checked;
   document.body.classList.toggle('simulating', $('useSim').checked);
