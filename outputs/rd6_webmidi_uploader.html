@@ -74,18 +74,18 @@ label.inline { display: inline-flex; gap: 6px; align-items: center; }
 <main>
   <div class="sim-banner">SIMULATOR ACTIVE: nothing is sent to hardware.</div>
   <h1>RD-6 WebMIDI Uploader</h1>
-  <p class="sub">Local patch preparation, restore-file backup and ACK-paced USB updates. Transfer protocol: one frame in flight, the exact expected reply per frame, a 2&nbsp;s timeout, no automatic retry, and an abort on any unexpected reply.</p>
+  <p class="sub">Local patch preparation, saving supplied restore files and ACK-paced USB updates. Transfer protocol: one frame in flight, the exact expected reply per frame, a 2&nbsp;s timeout, no automatic retry, and an abort on any unexpected reply.</p>
 
   <div class="warnbox">This writes experimental firmware. USB-only recovery has not been verified. This tool cannot read a full-flash backup. Stock 1.0.5 SysEx is a rollback candidate, not a guaranteed recovery. Keep USB and power connected, keep this tab in the foreground, and close SynthTribe and other MIDI apps before you start.</div>
 
   <section>
-    <h2><span class="n">1</span> Save your restore file, then prepare TEST12</h2>
-    <p>This tool cannot read firmware from the RD-6 over USB. Save a copy of a firmware <strong>file you already have</strong>; this is not a full-flash dump and does not include patterns/settings. Keep a copy on your computer before updating.</p>
-    <div class="row"><label>Original firmware file (.syx) <input type="file" id="stockFile" accept=".syx"></label><button id="saveBackup" disabled>Download restore-file backup</button></div>
+    <h2><span class="n">1</span> Supply a stock file, then prepare TEST12</h2>
+    <p><strong>Automatic backup from a stock RD-6 is not implemented.</strong> If you require a device-read backup before your first install, this tool does not meet that requirement. Save a copy of a firmware <strong>file you already have</strong>; this is not a full-flash dump and does not include patterns/settings. Keep a copy on your computer before updating.</p>
+    <div class="row"><label>Original firmware file (.syx) <input type="file" id="stockFile" accept=".syx"></label><button id="saveBackup" disabled>Save a copy of this file</button></div>
     <div id="backupStatus" class="status idle">Choose your own firmware file. Nothing is uploaded to a server.</div>
-    <label class="inline"><input type="checkbox" id="backupSaved"> I have saved and can locate my restore-file backup.</label>
+    <label class="inline"><input type="checkbox" id="backupSaved"> I have saved and can locate my supplied restore file.</label>
     <p>To prepare TEST12, supply your own stock RD-6 1.0.5 SysEx file. Only the patch is distributed here. Restoration requires the RD-6 to still accept updates; this is not guaranteed recovery.</p>
-    <div class="row"><label>Restore a saved backup <input type="file" id="restoreFile" accept=".json,.syx"></label></div>
+    <div class="row"><label>Open a saved restore file <input type="file" id="restoreFile" accept=".json,.syx"></label></div>
     <div class="row">
       <label>Or choose a prepared firmware file <input type="file" id="file" accept=".syx"></label>
       <button id="loadPinned" title="Apply the patch locally to your stock1.0.5 file" disabled>Prepare TEST12 locally</button>
@@ -570,7 +570,7 @@ async function setBackup(bytes, label, restored=false) {
   if (!a.valid || (a.pin && !a.pin.allowed)) throw new Error('Restore file failed firmware validation.');
   S.backup = {bytes:bytes.slice(), hash:a.hash, label};
   S.backupDownloaded = restored;
-  status('backupStatus','ok',`${label}\nSHA-256 ${a.hash}\n${restored ? 'Backup verified. Confirm it is saved before restoring.' : 'Ready to save a file backup; no device memory was read.'}`);
+  status('backupStatus','ok',`${label}\nSHA-256 ${a.hash}\n${restored ? 'Backup verified. Confirm it is saved before restoring.' : 'Ready to save a copy of your supplied file; no device memory was read.'}`);
   refresh();
 }
 $('stockFile').addEventListener('change',async e=>{
@@ -582,7 +582,7 @@ $('saveBackup').addEventListener('click',()=>{
   const b=S.backup;
   const doc={format:'rd6-firmware-file-backup-v1',kind:'user-supplied-file-not-device-dump',name:b.label,sha256:b.hash,created:new Date().toISOString(),syx_base64:btoa(Array.from(b.bytes,x=>String.fromCharCode(x)).join(''))};
   downloadBytes(JSON.stringify(doc,null,2)+'\n',`RD6_RESTORE_${b.hash.slice(0,12)}.json`,'application/json');
-  S.backupDownloaded=true;status('backupStatus','ok','Restore-file download requested. Locate and keep it; then tick the saved-backup confirmation. This is not a device dump.');refresh();
+  S.backupDownloaded=true;status('backupStatus','ok','File-copy download requested. Locate and keep it; then confirm it is saved. No device firmware was read.');refresh();
 });
 async function applyPatch(bytes,p) {
   if(p.format!=='rd6-syx-replacements-v1' || p.source_sha256!==STOCK_SHA || p.target_sha256!==TARGET_SHA || bytes.length!==p.size || await sha256(bytes)!==STOCK_SHA) throw new Error('TEST12 requires the exact stock1.0.5 file (SHA-256 mismatch).');

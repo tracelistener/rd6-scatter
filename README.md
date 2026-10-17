@@ -4,6 +4,13 @@ Four held performance effects for the Behringer RD-6: **Roll, Ratchet, Slice and
 
 **[Open the browser uploader](https://tracelistener.github.io/rd6-scatter/)** · [Controls](docs/CONTROLS.md) · [Backup and restore](docs/BACKUP_RESTORE.md) · [Checks](checks/HARDWARE_ACCEPTANCE.json)
 
+## Automatic stock-firmware backup is not implemented
+
+The uploader cannot read the installed firmware from a stock RD-6. Saving a
+file you supply is only a file copy. If you need a device-read backup before
+the first flash, this tool does not yet meet that requirement. See
+[readback investigation](docs/READBACK.md).
+
 ## Install
 
 This repository distributes a **patch and our source**, not complete stock/modified firmware images or decrypted firmware. Supply your own **stock RD-6 1.0.5 `.syx` file**. The uploader checks its SHA-256, applies the patch locally and verifies that the result matches the tested TEST12 file. Files stay in your browser; only the patch is fetched from this site.
