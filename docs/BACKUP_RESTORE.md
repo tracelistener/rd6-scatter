@@ -9,10 +9,13 @@ There is no verified USB firmware-readback command in this project. It cannot re
 
 ## Restore a saved file
 
-1. Open the uploader and choose your saved JSON under **Restore a saved backup**, or supply the original `.syx` there.
-2. The tool verifies its checksum, framing and firmware structure. Confirm your backup is saved.
-3. Stop playback, connect USB, query identity and enter update mode normally.
-4. Review the loaded file's name/hash, acknowledge the transfer and choose **Restore selected firmware**. The transfer is logged as `restore`.
+1. Choose **Select stock 1.0.6 for restore**. The uploader downloads/checks the official file and selects it for restoration. No file chooser is required. Alternatively, use your saved JSON or SysEx under **Restore or use your own files**.
+2. Locate the downloaded restore copy and confirm it is saved.
+3. Stop playback and connect USB. Request MIDI access and use Identity query. Enter update mode only if still in application mode.
+4. In section 3, tick the transfer acknowledgement and click **Restore selected firmware**. Accept the stock1.0.6 restore confirmation. Entering update mode alone sends no firmware.
+5. Wait for the378 ACKs and1.0.6 post-reboot reply, then check normal Play/Stop.
+
+If already in update mode, skip mode entry. The identity action can recognize a bootloader that ignores the normal version query by checking the read-only08/40 update-mode response. The transfer repeats that guard before any firmware header. If a previous transfer failed after sending firmware, retain its log and investigate it before restarting.
 
 The known stock 1.0.5 and 1.0.6 files are recognized automatically. After transfer, the application reply must match the selected file header version. Preparation automatically downloads stock1.0.5 as the patch input and keeps stock1.0.6 separately for restoration. TEST14 backports the documented1.0.6 pattern-group fix; it is not a full1.0.6 port and has not yet passed physical testing. An unpinned structurally valid firmware file requires the existing typed hash confirmation. A damaged backup is rejected and cannot retain authority from a previously selected file.
 

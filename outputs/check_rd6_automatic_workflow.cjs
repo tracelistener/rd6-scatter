@@ -16,6 +16,7 @@ function check(name,pass){if(!pass)throw new Error(name);console.log('PASS '+nam
   await page.addInitScript(()=>{navigator.requestMIDIAccess=()=>{throw new Error('Preparation must not request MIDI');};});
   page.on('dialog',d=>d.accept());const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('http://127.0.0.1:'+server.address().port+'/outputs/rd6_webmidi_uploader.html');
+  await page.check('#useSim');check('update entry blocked before selecting firmware',!await page.isEnabled('#enterUpdate'));await page.uncheck('#useSim');
   check('TEST14 fix build is clearly marked hardware test pending',await page.inputValue('#buildChoice')==='test14' && /pending/.test(await page.textContent('#buildNote')));
   const [download]=await Promise.all([page.waitForEvent('download'),page.click('#downloadStock')]);
   const backupBytes=fs.readFileSync(await download.path()),backup=JSON.parse(backupBytes);
@@ -32,12 +33,14 @@ function check(name,pass){if(!pass)throw new Error(name);console.log('PASS '+nam
   await page.selectOption('#buildChoice','test12');
   const [legacy]=await Promise.all([page.waitForEvent('download'),page.click('#loadPinned')]);
   check('original TEST12 also prepares without user file',sha(fs.readFileSync(await legacy.path()))==='9bc1c3a74da476c6694724314d275030a7debb4299c561d06cf56f4e55b540ef');
-  await page.locator('details').evaluate(e=>e.open=true);
-  await page.setInputFiles('#restoreFile',{name:'RD6_RESTORE.json',mimeType:'application/json',buffer:backupBytes});
-  await page.waitForFunction(()=>S.restoreMode && S.image?.hash===STOCK106_SHA);
-  await page.check('#backupSaved');await page.click('#enterUpdate');await page.waitForFunction(()=>!S.busy);
+  // A stock bootloader can ignore08 entirely while answering08/40.
+  await page.evaluate(()=>{Sim.mode='update';const original=Sim.send;Sim.send=function(f){if(this.mode==='update' && f.length===10 && f[8]===8)return;return original.call(this,f);};S.events=[];});
+  await page.click('#identity');await page.waitForFunction(()=>!S.busy);
+  check('silent08 bootloader identified read-only with08/40',await page.evaluate(()=>S.deviceMode==='update' && S.events.some(e=>e.event==='already_in_update_mode_confirmed') && !S.events.some(e=>e.event==='tx' && / 0[ab] /.test(e.hex))));
+  await page.click('#selectStockRestore');await page.waitForFunction(()=>!S.busy);
+  check('visible restore action selects stock1.0.6 without any file chooser',await page.evaluate(()=>S.restoreMode && S.image.hash===STOCK106_SHA && [...document.querySelectorAll('input[type=file]')].every(f=>f.files.length===0)) && await page.textContent('#send')==='Restore selected firmware');
   await page.click('#send');await page.waitForFunction(()=>S.busy);await page.waitForFunction(()=>!S.busy,null,{timeout:60000});
-  check('downloaded restore JSON reinstalls stock1.0.6 in simulator',await page.evaluate(()=>Sim.version==='1.0.6' && S.mode==='restore') && /^Done/.test(await page.textContent('#xferStatus')));
+  check('already-update session restores stock1.0.6 without repeating mode entry',await page.evaluate(()=>Sim.version==='1.0.6' && S.mode==='restore') && /^Done/.test(await page.textContent('#xferStatus')));
   await page.route('**/firmware/RD-6_V1.0.5.syx',route=>route.fulfill({status:200,body:Buffer.alloc(116186)}));
   await page.click('#downloadStock');await page.waitForFunction(()=>!S.busy);
   check('corrupted network download clears authority and refuses preparation',await page.evaluate(()=>!S.image && !S.backup && !S.patchSource && !S.backupDownloaded) && await page.isDisabled('#loadPinned') && /mismatch/.test(await page.textContent('#backupStatus')));

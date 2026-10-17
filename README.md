@@ -23,7 +23,7 @@ The [1.0.6 fix](https://mediadl.musictribe.com/download/software/behringer/RD6/R
 
 ### Restore stock1.0.6
 
-Open **Restore or use your own files**, select the saved restore JSON (or the [original stock1.0.6 SysEx](firmware/RD-6_V1.0.6.syx)), confirm it is saved, stop playback, enter update mode and choose **Restore selected firmware**. The tool checks the checksum, file structure, every transfer acknowledgement and the post-reboot version.
+Choose **Select stock 1.0.6 for restore** in section 1. It selects/downloads the verified stock file without a file chooser. Locate the saved restore copy and confirm it is saved. Stop playback, enter update mode if needed, then use **Restore selected firmware** in section 3. Entering update mode does not itself start restoration. If the RD-6 is already in update mode, use Identity query to confirm it and continue directly to section 3; do not enter again. Saved JSON and original SysEx import remain available under **Restore or use your own files**. The tool checks the checksum, file structure, every transfer acknowledgement and the post-reboot version.
 
 The restore file is a vendor update, **not a readback of your installed firmware**. It does not include the bootloader, patterns or settings. Stock-first USB firmware readback remains unavailable on the revision investigated. Restoration requires a working update interface; it is not guaranteed interrupted-flash recovery. [Backup and restore details](docs/BACKUP_RESTORE.md).
 

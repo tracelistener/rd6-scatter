@@ -91,7 +91,8 @@ label.inline { display: inline-flex; gap: 6px; align-items: center; }
     <label class="inline"><input type="checkbox" id="backupSaved"> I have saved and can locate my restore file.</label>
     <div class="row"><label>Scatter build <select id="buildChoice"><option value="test14">TEST14 — TEST12 effects + 1.0.6 pattern-group fix (offline checked; hardware test pending)</option><option value="test12">TEST12 — original hardware-tested build (without 1.0.6 fix)</option></select></label></div>
     <p id="buildNote">TEST14 backports the documented 1.0.6 pattern-group selection fix into the tested TEST12 address map. It is not a full port onto stock 1.0.6; its application version remains 1.0.5 and its diagnostic marker remains 12. Physical TEST14 testing is pending.</p>
-    <div class="row"><button id="loadPinned" disabled>Prepare Scatter locally</button></div>
+    <div class="row"><button id="loadPinned" disabled>Prepare Scatter locally</button><button id="selectStockRestore">Select stock 1.0.6 for restore</button></div>
+    <p><strong>Restoring?</strong> Select stock 1.0.6 above, confirm your restore copy is saved, then use <strong>Restore selected firmware</strong> in section 3. Entering update mode does not start the restore. If already in update mode, skip entering it again.</p>
     <details><summary>Restore or use your own files (optional)</summary>
       <p>To restore stock, choose the downloaded restore JSON or stock SysEx here, enter update mode, then choose Restore selected firmware.</p>
       <div class="row"><label>Restore stock / saved firmware <input type="file" id="restoreFile" accept=".json,.syx"></label></div>
@@ -119,6 +120,7 @@ label.inline { display: inline-flex; gap: 6px; align-items: center; }
       <button id="enterUpdate" disabled>Enter update mode (03 30)</button>
     </div>
     <div id="devStatus" class="status idle">Device state unknown.</div>
+    <p>Select firmware in section 1 before entering update mode. Already in update mode? Use Identity query to check, then continue to section 3 without entering again.</p>
   </section>
 
   <section class="sim" id="simPanel" hidden>
@@ -477,7 +479,11 @@ async function doIdentity() {
     const isUpdateAck = replies.some(r => eq(r, ACK));
     if (observedVersion) { S.deviceMode='application'; log('stock_identity_confirmed',{version:observedVersion}); status('devStatus','ok',`Application mode, version ${observedVersion}. Version alone does not identify a custom build.`); }
     else if (isUpdateAck) { S.deviceMode = 'update'; status('devStatus', 'warn', 'Device answered 08 with an ACK. It looks like it is already in update mode.'); }
-    else { S.deviceMode = 'unknown'; status('devStatus', 'bad', 'No application version reply: ' + (replies.map(toHex).join(' | ') || 'no reply')); }
+    else if(!replies.length){
+      await exchange(s,Q_UPDATE_MODE,ACK);S.deviceMode='update';log('already_in_update_mode_confirmed');
+      status('devStatus','ok','Already in update mode (08 40 confirmed). No firmware was sent. Next: select stock 1.0.6 in section 1, then Restore selected firmware in section 3.');
+    }
+    else { S.deviceMode = 'unknown'; status('devStatus', 'bad', 'No application version reply: ' + replies.map(toHex).join(' | ')); }
   }).catch(e => status('devStatus', 'bad', e.message));
 }
 
@@ -504,10 +510,10 @@ async function doEnterUpdate() {
     }
     log('entry_acks', { count: acks, note: 'two observed on hardware' });
     if (!s.closed) s.close();
-    if (!back) { status('devStatus', gone ? 'bad' : 'warn', gone ? 'Port did not come back within 15 s.' : 'No disconnect seen. Check the device before transferring; the 08 40 guard will refuse if it is not in update mode.'); return; }
+    if (!back) { status('devStatus', gone ? 'bad' : 'warn', gone ? 'Port did not come back within 15 s.' : 'Browser did not observe a disconnect. No firmware sent. Use Identity query to check update mode, then continue to section 3. The transfer guard refuses application mode.'); return; }
     await sleep(500);   // settle so stale entry ACKs cannot be taken as data ACKs
     S.deviceMode = 'update';
-    status('devStatus', 'ok', 'Re-enumerated after entry. Presumed update mode; the transfer re-checks with 08 40.');
+    status('devStatus', 'ok', 'Re-enumerated after entry. No firmware sent yet. Next: '+(S.restoreMode?'Restore selected firmware':'Send firmware')+' in section 3. The transfer re-checks update mode before writing.');
   }).catch(e => status('devStatus', 'bad', e.message));
 }
 
@@ -565,9 +571,9 @@ function refresh() {
   const saved = !!S.backup && S.backupDownloaded && $('backupSaved').checked;
   $('saveBackup').disabled = S.busy || !S.backup;
   $('loadPinned').disabled = S.busy || !saved || (S.patchSource ? S.patchSource.hash : S.backup.hash) !== STOCK_SHA;
-  for (const id of ['file','stockFile','restoreFile','backupSaved','buildChoice','downloadStock']) $(id).disabled = S.busy;
+  for (const id of ['file','stockFile','restoreFile','backupSaved','buildChoice','downloadStock','selectStockRestore']) $(id).disabled = S.busy;
   $('identity').disabled = S.busy || !haveDev;
-  $('enterUpdate').disabled = S.busy || !haveDev;
+  $('enterUpdate').disabled = S.busy || !haveDev || !saved || !imageSendable();
   const ready = !S.busy && saved && haveDev && imageSendable() && $('understand').checked;
   $('preamble').disabled = !ready; $('send').disabled = !ready;
   $('send').textContent = S.restoreMode ? 'Restore selected firmware' : 'Send firmware';
@@ -622,6 +628,23 @@ async function fetchStock(version,expected){
   if(!image.valid || image.version!==version)throw new Error('Stock '+version+' structure/version mismatch.');
   return {bytes,hash:expected};
 }
+$('selectStockRestore').addEventListener('click',async()=>{
+  if(S.busy)return;
+  S.busy=true;S.image=null;S.restoreMode=false;refresh();
+  status('fileStatus','idle','Selecting verified stock 1.0.6 for restore...');
+  let save=false;
+  try{
+    let bytes=S.backup?.hash===STOCK106_SHA ? S.backup.bytes : null;
+    if(!bytes){
+      const stock=await fetchStock('1.0.6',STOCK106_SHA);bytes=stock.bytes;
+      await setBackup(bytes,'RD-6_V1.0.6.syx',false,'official');save=true;
+    }
+    await loadImage(bytes,'Restore: Stock RD-6 1.0.6');
+    status('xferStatus','idle','Stock 1.0.6 selected. No firmware sent. Confirm your saved restore copy and the transfer acknowledgement, then click Restore selected firmware. If already in update mode, do not enter it again.');
+  }catch(e){S.image=null;status('fileStatus','bad',e.message);}
+  finally{S.busy=false;refresh();}
+  if(save)saveRestoreCopy();
+});
 $('downloadStock').addEventListener('click',async()=>{
   if(S.busy)return;
   S.busy=true;S.patchSource=null;S.backup=null;S.backupDownloaded=false;S.image=null;S.restoreMode=false;$('backupSaved').checked=false;refresh();
