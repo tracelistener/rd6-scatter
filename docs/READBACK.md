@@ -22,7 +22,7 @@ method would be needed for a true backup before the first flash.
 After the diagnostic, the known working TEST12 file was restored. The
 transmitted file was verified byte-for-byte, all firmware transactions were
 acknowledged, and the post-reboot status identified TEST12, stopped with
-effects off. Post-restoration listening is a separate user check.
+effects off. The user also confirmed normal Play/Stop and held Roll/release after restoration.
 
 ## Restore fallback
 

@@ -32,7 +32,7 @@
     "restored_build": "TEST12_GLITCH",
     "restore_378_ACKs_and_383_byte_exact_frames": true,
     "post_reboot_marker12_and_effect_off_verified": true,
-    "post_restore_listening": "pending",
+    "post_restore_listening": "user passed normal Play/Stop and held Roll/release",
     "stock_first_install_backup": false
   }
 }
