@@ -44,8 +44,8 @@ def decode_syx(data):
 
 def main():
     data=(HERE/'firmware/RD-6_V1.0.5.syx').read_bytes()
-    new=decode_syx(apply(data,json.loads((HERE/'outputs/TEST14.patch.json').read_text())))
-    parent=decode_syx(apply(data,json.loads((HERE/'outputs/TEST12.patch.json').read_text())))
+    new=decode_syx(apply(data,json.loads((HERE/'source/scatter-v1.patch.json').read_text())))
+    parent=decode_syx(apply(data,json.loads((HERE/'source/TEST12.patch.json').read_text())))
     stock=decode_syx((HERE/'firmware/RD-6_V1.0.6.syx').read_bytes())
     allowed=set(range(SITE-BASE,SITE-BASE+4))|set(range(CAVE-BASE,CAVE-BASE+22))
     assert {i for i,(a,b) in enumerate(zip(parent,new)) if a!=b}<=allowed

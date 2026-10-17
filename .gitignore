@@ -10,4 +10,6 @@ node_modules/
 backups/
 private/
 RD6_RESTORE_*.json
+RD6_BACKUP_*.json
+RD6_PATTERNS_*.json
 RD6_WEBMIDI_*.json

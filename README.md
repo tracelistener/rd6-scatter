@@ -1,63 +1,111 @@
 # RD-6 Scatter
 
-Four held performance effects for the Behringer RD-6: **Roll, Ratchet, Slice and Cut**, with independent Forward, Reverse, Random and Ping-pong playback directions. Experimental firmware. TEST12 was tested on one RD-6; TEST14 adds an offline-checked stock1.0.6 fix.
+Scatter is unofficial custom firmware for the **Behringer RD-6** drum machine. It adds four live effects that you play with the TAP button while a pattern runs:
 
-**[Open the browser uploader](https://tracelistener.github.io/rd6-scatter/)** · [Controls](docs/CONTROLS.md) · [Backup and restore](docs/BACKUP_RESTORE.md) · [Checks](checks/HARDWARE_ACCEPTANCE.json)
+| Effect | What it does |
+|---|---|
+| **Roll** | Repeats the last hit or chord |
+| **Ratchet** | Plays each programmed hit as 2 or 4 fast repeats |
+| **Slice** | Jumps around, repeats and reverses parts of the pattern |
+| **Cut** | Mutes hits in rhythmic patterns |
 
-## Download and install — no firmware files needed
+You can also play patterns **Forward, Reverse, Random or Ping-pong**.
 
-1. Open the uploader in desktop Chrome or Edge and choose **Download firmware and save restore copy**.
-2. The tool downloads verified official stock **1.0.6 for restoration** and **1.0.5 for the Scatter patch**. It requests a download of a checksummed stock1.0.6 restore JSON. Locate that file and confirm it is saved.
-3. Choose a build and **Prepare Scatter locally**. Keep the prepared SysEx file too.
-4. Stop playback, connect USB and close other MIDI applications. Request MIDI/SysEx access, query identity, then enter update mode.
-5. Acknowledge the transfer and send firmware. Keep power, USB and the tab active until the reboot check finishes.
+> [!WARNING]
+> Scatter is experimental and is not made or supported by Behringer. So far it has been tested on one RD-6. You can go back to the official firmware at any time with the same updater.
 
-The original vendor SysEx update packages are mirrored in `firmware/`, with source and checksums in [PROVENANCE.json](firmware/PROVENANCE.json). No decrypted BIN images, device dumps or vendor service credentials are distributed. Downloads and patching need no MIDI access and send nothing to the RD-6.
+### [Open the updater →](https://tracelistener.github.io/rd6-scatter/)
 
-### Which build?
+The updater runs in your web browser. There's nothing to download or install.
 
-- **TEST14_FIX106:** TEST12's effects and controls plus a backport of the documented stock1.0.6 pattern-group selection fix. It passed offline instruction checks; **physical TEST14 testing is pending**. This is not a full port onto stock1.0.6: application version remains1.0.5 and the diagnostic marker remains12.
-- **TEST12_GLITCH:** the original hardware-tested build, available as an option. It does not contain that1.0.6 fix.
+## What you need
 
-The [1.0.6 fix](https://mediadl.musictribe.com/download/software/behringer/RD6/Release-Notes_BE_RD-6_v1-0-6_Rev.1.pdf) preserves a selected pattern number when changing its pattern group during playback, even if the number was chosen first. TEST14's actual saved Thumb code matched stock1.0.6 in1536 state comparisons; see [build checks](checks/TEST14_FIX106.json).
+- A Behringer RD-6 and a USB cable
+- A computer with **Google Chrome** or **Microsoft Edge** (other browsers can't send firmware to MIDI devices)
 
-### Restore stock1.0.6
+Close SynthTribe and any other music software before you start.
 
-Choose **Select stock 1.0.6 for restore** in section 1. It selects/downloads the verified stock file without a file chooser. Locate the saved restore copy and confirm it is saved. Stop playback, enter update mode if needed, then use **Restore selected firmware** in section 3. Entering update mode does not itself start restoration. If the RD-6 is already in update mode, use Identity query to confirm it and continue directly to section 3; do not enter again. Saved JSON and original SysEx import remain available under **Restore or use your own files**. The tool checks the checksum, file structure, every transfer acknowledgement and the post-reboot version.
+## Install Scatter
 
-The restore file is a vendor update, **not a readback of your installed firmware**. It does not include the bootloader, patterns or settings. Stock-first USB firmware readback remains unavailable on the revision investigated. Restoration requires a working update interface; it is not guaranteed interrupted-flash recovery. [Backup and restore details](docs/BACKUP_RESTORE.md).
+1. Open the [updater](https://tracelistener.github.io/rd6-scatter/). Connect the RD-6 by USB, switch it on and press **STOP**.
+2. Click **Connect**. If the browser asks whether the page may control your MIDI devices, choose **Allow**.
+3. Under **Back up**, click **Save backup**, keep the file somewhere safe and tick the box to confirm you saved it. If the updater says there's nothing to back up, skip this. See [About backups](#about-backups).
+4. Also click **Save patterns and settings**. It's optional, but it keeps a copy of all your patterns.
+5. Choose **Install Scatter**, tick the box to confirm you understand Scatter is experimental, then click **Install Scatter**.
+6. Wait until the updater says **Done**. It usually takes under a minute. While it works, keep the tab open and in front, and don't unplug the RD-6. If the updater says Chrome lost its connection to the RD-6, click **Reconnect** and carry on.
 
-To run locally, clone/download the repository, run `python -m http.server 8000` in its root, and open `http://localhost:8000/outputs/rd6_webmidi_uploader.html`. A simulator is included and opens no MIDI ports.
+## About Scatter v1.2
 
-## Play
+Scatter v1.2 is built on Behringer's firmware **1.0.5** and includes the bug fix from Behringer's newest firmware, **1.0.6**: the RD-6 keeps the pattern number you picked when you change pattern group during playback ([Behringer's release notes](https://mediadl.musictribe.com/download/software/behringer/RD6/Release-Notes_BE_RD-6_v1-0-6_Rev.1.pdf)).
 
-In PATTERN PLAY while playing, hold FUNCTION and press TAP to enter Scatter. Release both; a fresh TAP holds the selected effect, and release resumes the running pattern unless latched.
+After you install it, your RD-6 reports firmware **1.0.5**. That's expected.
 
-| Effects | | | |
+New since Scatter v1:
+
+- **The step lights follow the playback direction.** In Reverse, Random or Ping-pong, the running light shows the step that's actually playing.
+- **Scatter stays on in Pattern Write.** The direction you chose keeps playing while you edit, and the buttons do their normal Write jobs. Scatter's controls work again when you go back to Pattern Play.
+
+Already have Scatter v1? Install again the same way to get v1.2.
+
+## Go back to the official firmware
+
+1. Open the [updater](https://tracelistener.github.io/rd6-scatter/) and click **Connect**.
+2. Choose **Restore**, then choose one of these:
+   - **Official firmware 1.0.6**: Behringer's newest version. No file needed.
+   - **Firmware from a file**: the firmware backup you saved before you installed Scatter.
+3. Click the restore button and wait until the updater says **Done**.
+
+To put your patterns back, choose **Restore → Patterns and settings from a file** and pick your patterns file. That doesn't change the firmware.
+
+## About backups
+
+The updater saves two kinds of backup.
+
+**Firmware.** The RD-6 has no way to send its firmware back to a computer, so the updater can't copy it. Instead, it asks your RD-6 which version it runs and saves Behringer's official file for that version. Restoring that file puts the same official firmware back.
+
+- **Official 1.0.6 or 1.0.5:** the backup is that version.
+- **Scatter already installed:** there's nothing to back up. You can reinstall Scatter or restore official 1.0.6 whenever you like. Scatter also reports version 1.0.5, so if your RD-6 reports 1.0.5 the updater asks which one you have.
+- **Any other version:** the updater tells you it can't make a backup. You can still restore official 1.0.6 later, or install Behringer's newest firmware with their SynthTribe app.
+
+**Patterns and settings.** These are read straight from your RD-6: all 32 patterns (2 groups of 16) and its settings, such as the MIDI channels. They're saved in one file you can restore later. They're kept separately from the firmware, so installing Scatter or restoring firmware doesn't change them.
+
+More detail and troubleshooting: [Backup, restore and troubleshooting](docs/BACKUP_RESTORE.md).
+
+## Playing Scatter
+
+Start a pattern in PATTERN PLAY mode, then:
+
+1. Hold **FUNCTION** and press **TAP** to turn Scatter on. Let go of both.
+2. Use the step buttons to choose an effect, a depth and a direction.
+3. Hold **TAP** to play the effect. Let go to hear the normal pattern again.
+
+| | | | |
 |---|---|---|---|
 | **1** Roll | **2** Ratchet | **3** Slice | **4** Cut |
-| **5** Depth1 | **6** Depth2 | **7** Depth3 | **8** Depth4 |
+| **5** Depth 1 | **6** Depth 2 | **7** Depth 3 | **8** Depth 4 |
 | **9** Forward | **10** Reverse | **11** Random | **12** Ping-pong |
-| **13** Straight Roll | **14** Triplet Roll | **15** Latch | **16** Effect off |
+| **13** Straight roll | **14** Triplet roll | **15** Latch | **16** Effect off |
 
-PATTERN GROUP duplicates Step15's latch. Step16 cancels latch and held TAP until TAP is released and pressed again. Stop exits Scatter, turns effects off and restores Forward. Reverse starts at the **next bar**, then reads16→1 including rests. Step LEDs retain the underlying clock display.
+- **Latch** (step 15, or PATTERN GROUP) keeps the effect playing after you let go of TAP. **Effect off** (step 16) stops it.
+- A **direction** stays on until you choose another one or leave Scatter, and the step lights follow it. Reverse starts at the next bar.
+- Switching to **Pattern Write** keeps Scatter on, but its buttons rest until you go back to Pattern Play.
+- To **leave Scatter**, hold FUNCTION and press TAP again, or press STOP. Either way the direction goes back to Forward, and STOP also turns the effect off.
+- Roll and the extra Ratchet hits come only from the RD-6's audio outputs, not over MIDI.
+- Scatter doesn't save its settings. They reset when you switch the RD-6 off.
 
-Roll repeats captured hits/chords; Ratchet repeats programmed hits; Slice makes scripted step jumps/repeats/reversed fragments; Cut skips triggers in rhythmic patterns. Cut leaves existing analog decays sounding. Roll and extra Ratchet hits are analog-only: listen to the RD-6 audio output.
+Shortcuts, depth details and MIDI control: [Scatter controls](docs/CONTROLS.md).
 
-## Validation and limits
+## Known limitations
 
-On the test unit, the user passed all Slice/Cut depths, Roll straight/triplet, Ratchet, hold/release, latch, effect-off, all direction buttons, returning to Reverse after Roll, normal Play/Stop and one power cycle. The transfer had378 firmware ACKs and 383 byte-exact transmitted file frames; build12 status confirmed execution. These are listening/selected-path checks, not laboratory timing measurements.
+- Scatter has been tested on one RD-6 only.
+- It hasn't been tested with an external MIDI clock or with other devices chained to the RD-6.
+- Ratchet can glitch at very fast tempos. This is known and not fixed yet.
+- The updater can only help while the RD-6 still responds over USB. If an update is interrupted, see [If something goes wrong](docs/BACKUP_RESTORE.md#if-something-goes-wrong).
 
-External clock/chain, worst-case interrupt timing and RAM liveness remain unmeasured. An earlier fast-tempo Ratchet glitch remains unresolved/deferred. USB-only restoration is not guaranteed. The browser transfer engine passed 22 simulator checks, and the actual browser uploader restored stock 1.0.6 on the test unit with 378 ACKs and a matching post-reboot version reply. The user confirmed normal stock Play/Stop. TEST12 was then reinstalled through the browser with 383 byte-exact file frames, 378 firmware ACKs and build12 status showing stopped, Scatter off and Forward. The user also confirmed normal TEST12 Play/Stop and held Roll/release after the round trip.
+## For developers
 
-## Source and development
+How Scatter is built, how the updater works and how to run the checks: [Technical notes](docs/TECHNICAL.md).
 
-`source/` contains our LLVM core, panel, status, bridge/timer sources and the TEST14 backport. `outputs/TEST12.patch.json` and `outputs/TEST14.patch.json` contain changed byte runs against the pinned stock1.0.5 SysEx. Original vendor SysEx containers are provided for automatic preparation/restoration; decrypted images and raw device logs remain private.
+## Legal
 
-Prepare a file without a browser: `python scripts/apply_patch.py firmware/RD-6_V1.0.5.syx /path/to/Scatter.syx --build test14`. Use `--build test12` for the earlier build. This preserves the input and refuses to overwrite an existing output.
-
-Verify compilation of the three TEST12 payloads with Python3.12: install `source/requirements.txt`, then run `python -I source/verify_payloads.py`. This verifies our payload objects; it is not a full firmware rebuild or full MCU emulator. Run `python -I source/check_fix106.py` to independently reproduce the1536 stock1.0.6 backport comparisons using the included vendor SysEx containers. Decoding stays in memory; no decrypted firmware file is written.
-
-Browser checks: install Playwright and Chromium, then run `node outputs/check_rd6_webmidi_uploader.cjs` and `node outputs/check_rd6_automatic_workflow.cjs`. The repository includes their input files. Optionally set `RD6_CHROME_PATH` to a Chrome executable. These checks use simulated MIDI only.
-
-This is an independent experiment, not a Behringer or Roland product. Original vendor SysEx update files are mirrored without modification; vendor ownership is unchanged. The public repository starts with a clean history; the earlier research history remains private.
+Scatter is an independent project. It isn't affiliated with Behringer, Music Tribe or Roland. The files in `firmware/` are unmodified copies of Behringer's official updates and belong to their owner.

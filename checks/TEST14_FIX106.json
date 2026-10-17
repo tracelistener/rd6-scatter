@@ -7,7 +7,7 @@
   "scope": "Actual saved Thumb code and stock1.0.6 branch compared over both groups, queued/no-queue states, all16 current and requested pattern numbers. No physical test or full MCU emulation.",
   "build": "TEST14_FIX106",
   "syx_sha256": "2cdce8d2ae225feb21a153d69669c3406410893e9d1882ac0c8fb5391468b97b",
-  "hardware_test": "Pending; no TEST14 firmware sent in this workflow work",
+  "hardware_test": "Installed with the browser updater on 2026-10-17 (378 firmware ACKs; after Reconnect the RD-6 reported 1.0.5) and played on the test unit with no fault found. Full TEST12 listening checklist not repeated.",
   "regression_reports": {
     "CHECKS": {
       "status": "passed_TEST12_silent_entry_and_queued_Reverse_ARM_checks",

@@ -3,13 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RD-6 WebMIDI Uploader</title>
+<title>RD-6 Scatter Updater</title>
 <!--
-  Browser implementation of the verified USB update handshake and pacing.
-  Same protocol, same ACK pacing, same abort rules: one frame in flight,
-  exact expected reply, 2 s timeout, no automatic retry, abort on any
-  unsolicited or unexpected reply. Fetches pinned vendor SysEx containers and our patches from this site.
-  No vendor service credentials are embedded or requested from users.
+  Installs Scatter on a Behringer RD-6 over USB (Web MIDI with SysEx), saves a
+  backup of the firmware version the RD-6 reports, and restores official
+  firmware or a backup file.
+
+  The transfer engine is the hardware-tested one: one frame in flight, the exact
+  expected reply per frame, a 2 s timeout, no automatic retry, and an abort on
+  any unsolicited or unexpected reply. Official vendor SysEx files and the
+  Scatter patches are fetched from this site and checked against pinned SHA-256
+  hashes. No vendor service credentials are embedded or requested from users.
   Includes a simulated RD-6 so the whole flow can be exercised offline.
 -->
 <style>
@@ -31,25 +35,43 @@
 [hidden] { display: none !important; }
 body { margin: 0; background: var(--bg); color: var(--ink);
   font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
-main { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
-h1 { font-size: 22px; margin: 0 0 4px; }
-h2 { font-size: 16px; margin: 0 0 10px; display: flex; gap: 8px; align-items: baseline; }
-h2 .n { color: var(--muted); font-variant-numeric: tabular-nums; }
+main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
+h1 { font-size: 24px; margin: 0 0 4px; }
+h2 { font-size: 17px; margin: 0 0 8px; display: flex; gap: 10px; align-items: center; }
+h2 .n { display: inline-grid; place-items: center; flex: none; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--ink); color: var(--panel); font-size: 14px; font-variant-numeric: tabular-nums; }
+h3 { font-size: 15px; margin: 22px 0 6px; }
 p { margin: 6px 0; }
-.sub { color: var(--muted); margin-bottom: 18px; }
-section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin: 12px 0; }
-.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
-button { font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line);
+a { color: var(--accent); }
+.sub { color: var(--muted); margin-bottom: 16px; }
+.hint { color: var(--muted); font-size: 14px; }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin: 12px 0; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 10px 0; }
+button { font: inherit; padding: 7px 14px; border-radius: 6px; border: 1px solid var(--line);
   background: var(--panel); color: var(--ink); cursor: pointer; }
-button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--panel); }
+button.big { padding: 10px 20px; font-size: 16px; font-weight: 600; }
 button.danger { border-color: var(--bad); color: var(--bad); }
 button:disabled { opacity: .45; cursor: not-allowed; }
 .row > label { min-width: 0; max-width: 100%; }
 input[type=file] { max-width: 100%; }
-#buildChoice { display: block; width: 100%; }
-input[type=text], select { font: inherit; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--line);
+input[type=text] { font: inherit; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--line);
   background: var(--bg); color: var(--ink); min-width: 0; max-width: 100%; }
-label.inline:has(#portName) { flex-wrap: wrap; max-width: 100%; }
+select { font: inherit; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--ink); min-width: 0; max-width: 100%; }
+label.inline { display: inline-flex; gap: 8px; align-items: flex-start; margin: 6px 0; }
+label.inline input { margin-top: 4px; flex: none; }
+label.inline:has(#portName) { flex-wrap: wrap; align-items: center; max-width: 100%; }
+fieldset { border: 0; padding: 0; margin: 10px 0; min-width: 0; }
+legend { font-weight: 600; padding: 0; margin-bottom: 4px; }
+.choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; margin: 8px 0 14px; }
+.choices .choice { margin: 0; }
+.choice { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; margin: 6px 0;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--bg); cursor: pointer; }
+.choice:has(input:checked) { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.choice:has(input:disabled) { cursor: not-allowed; opacity: .7; }
+.choice input { margin-top: 4px; flex: none; }
+.choice small { display: block; color: var(--muted); font-size: 13px; }
 code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
 code { background: var(--code); padding: 1px 4px; border-radius: 4px; overflow-wrap: anywhere; }
 .status { padding: 8px 10px; border-radius: 6px; background: var(--code); margin: 8px 0; overflow-wrap: anywhere; white-space: pre-wrap; }
@@ -57,113 +79,143 @@ code { background: var(--code); padding: 1px 4px; border-radius: 4px; overflow-w
 .status.warn { border-left: 4px solid var(--warn); }
 .status.bad { border-left: 4px solid var(--bad); }
 .status.idle { border-left: 4px solid var(--line); }
-table { border-collapse: collapse; width: 100%; font-size: 13px; }
-td { padding: 3px 8px 3px 0; vertical-align: top; overflow-wrap: anywhere; }
-td:first-child { color: var(--muted); white-space: nowrap; width: 1%; }
-.checks li { margin: 2px 0; }
+.checks { font-size: 13px; padding-left: 22px; }
+.checks li { margin: 2px 0; overflow-wrap: anywhere; }
 .checks li.pass::marker { content: "✓  "; color: var(--ok); }
 .checks li.fail::marker { content: "✗  "; color: var(--bad); }
 progress { width: 100%; height: 14px; }
 #log { height: 260px; overflow: auto; background: var(--code); border-radius: 6px; padding: 8px;
   white-space: pre; font-size: 12px; }
-.sim { border-style: dashed; }
+.sim { border: 1px dashed var(--line); border-radius: 8px; padding: 10px 12px; margin: 10px 0; }
 .sim-banner { display: none; background: var(--warn); color: #000; padding: 6px 10px; border-radius: 6px; margin-bottom: 8px; font-weight: 600; }
 body.simulating .sim-banner { display: block; }
-label.inline { display: inline-flex; gap: 6px; align-items: center; }
-.warnbox { border-left: 4px solid var(--warn); padding: 6px 10px; background: var(--code); border-radius: 6px; font-size: 14px; }
+.warnbox { border-left: 4px solid var(--warn); padding: 8px 12px; background: var(--code); border-radius: 6px; font-size: 14px; }
+details#advanced { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin: 12px 0; }
+details#advanced > summary { cursor: pointer; font-weight: 600; }
+footer { color: var(--muted); font-size: 14px; margin-top: 18px; }
 </style>
 </head>
 <body>
 <main>
-  <div class="sim-banner">SIMULATOR ACTIVE: nothing is sent to hardware.</div>
-  <h1>RD-6 WebMIDI Uploader</h1>
-  <p class="sub">Download official stock updates, save a restore copy, prepare Scatter locally and update over USB. Transfer protocol: one frame in flight, the exact expected reply per frame, a 2&nbsp;s timeout, no automatic retry, and an abort on any unexpected reply.</p>
+  <div class="sim-banner">SIMULATOR ON: nothing is sent to a real RD-6.</div>
+  <h1>RD-6 Scatter Updater</h1>
+  <p class="sub">Install Scatter on your Behringer RD-6, back up the firmware it has now, or go back to the official firmware.</p>
 
-  <div class="warnbox">This writes experimental firmware. Stock 1.0.6 restoration was tested on one working RD-6. This tool cannot read a full-flash backup; restoration requires a working update interface. Keep USB and power connected, keep this tab in the foreground, and close SynthTribe and other MIDI apps before you start.</div>
+  <div class="warnbox"><strong>Before you start:</strong> use Chrome or Edge on a computer, and close SynthTribe and other music apps. While an update runs, keep the USB cable connected and keep this tab open and in front. Scatter is unofficial, experimental firmware.</div>
 
-  <section>
-    <h2><span class="n">1</span> Download firmware, save restore copy, prepare Scatter</h2>
-    <p>No firmware file needed. Download verified official stock <strong>1.0.6 for restoration</strong> and <strong>1.0.5 as the Scatter patch input</strong>. These original vendor SysEx update packages are mirrored here; no decrypted firmware is distributed.</p>
-    <div class="row"><button id="downloadStock" class="primary">Download firmware and save restore copy</button></div>
-    <p>The restore download contains stock 1.0.6. It is a vendor update file, not a readback of your RD-6, and does not include your patterns or settings. <a href="https://github.com/tracelistener/rd6-scatter/blob/main/docs/READBACK.md">Backup limitations</a>.</p>
-    <div id="backupStatus" class="status idle">Start with Download firmware. No MIDI access or device writes are needed to prepare files.</div>
-    <div class="row"><button id="saveBackup" disabled>Save restore copy again</button></div>
-    <label class="inline"><input type="checkbox" id="backupSaved"> I have saved and can locate my restore file.</label>
-    <div class="row"><label>Scatter build <select id="buildChoice"><option value="test14">TEST14 — TEST12 effects + 1.0.6 pattern-group fix (offline checked; hardware test pending)</option><option value="test12">TEST12 — original hardware-tested build (without 1.0.6 fix)</option></select></label></div>
-    <p id="buildNote">TEST14 backports the documented 1.0.6 pattern-group selection fix into the tested TEST12 address map. It is not a full port onto stock 1.0.6; its application version remains 1.0.5 and its diagnostic marker remains 12. Physical TEST14 testing is pending.</p>
-    <div class="row"><button id="loadPinned" disabled>Prepare Scatter locally</button><button id="selectStockRestore">Select stock 1.0.6 for restore</button></div>
-    <p><strong>Restoring?</strong> Select stock 1.0.6 above, confirm your restore copy is saved, then use <strong>Restore selected firmware</strong> in section 3. Entering update mode does not start the restore. If already in update mode, skip entering it again.</p>
-    <details><summary>Restore or use your own files (optional)</summary>
-      <p>To restore stock, choose the downloaded restore JSON or stock SysEx here, enter update mode, then choose Restore selected firmware.</p>
-      <div class="row"><label>Restore stock / saved firmware <input type="file" id="restoreFile" accept=".json,.syx"></label></div>
-      <div class="row"><label>Patch input / other stock file <input type="file" id="stockFile" accept=".syx"></label></div>
-      <div class="row"><label>Prepared firmware file <input type="file" id="file" accept=".syx"></label></div>
-    </details>
-    <div id="fileStatus" class="status idle">No file loaded.</div>
-    <ul id="fileChecks" class="checks"></ul>
-    <div id="unpinnedBox" class="row" hidden>
-      <label class="inline"><input type="checkbox" id="allowUnpinned"> Allow this unpinned image. Type the first 8 hex of its SHA-256 to confirm:</label>
-      <input type="text" id="unpinnedConfirm" size="10" class="mono" autocomplete="off">
-    </div>
+  <section id="step1">
+    <h2><span class="n">1</span> Connect your RD-6</h2>
+    <p>Connect the RD-6 to this computer with a USB cable, switch it on and press <strong>STOP</strong>. Then click Connect. If the browser asks to let this page control your MIDI devices, choose <strong>Allow</strong>.</p>
+    <div class="row"><button id="connect" class="primary">Connect</button><button id="reconnect1" class="primary" hidden>Reconnect</button></div>
+    <div id="devStatus" class="status idle" role="status">Not connected.</div>
   </section>
 
-  <section>
-    <h2><span class="n">2</span> Device</h2>
-    <div class="row">
-      <label class="inline">Port name <input type="text" id="portName" value="RHYTHM DESIGNER RD-6" size="26"></label>
-      <button id="connect">Request MIDI access</button>
-      <label class="inline"><input type="checkbox" id="useSim"> Use simulated RD-6</label>
+  <section id="step2">
+    <h2><span class="n">2</span> Back up</h2>
+    <h3>Firmware</h3>
+    <p>The RD-6 can't send its firmware to a computer. Instead, the updater saves Behringer's official file for the version your RD-6 reports. Restoring that file puts the same firmware back.</p>
+    <fieldset id="ask105" hidden>
+      <legend>Your RD-6 reports version 1.0.5. Scatter reports 1.0.5 too. Which one is on your RD-6?</legend>
+      <label class="choice"><input type="radio" name="fw105" value="official"><span><strong>Official firmware 1.0.5</strong><small>I haven't installed Scatter on this RD-6, or I'm not sure.</small></span></label>
+      <label class="choice"><input type="radio" name="fw105" value="scatter"><span><strong>Scatter</strong><small>I've installed Scatter on this RD-6 before.</small></span></label>
+    </fieldset>
+    <div id="backupStatus" class="status idle" role="status">Connect your RD-6 first (step 1).</div>
+    <div class="row" id="saveBackupRow" hidden><button id="saveBackup">Save backup</button></div>
+    <label class="inline" id="backupSavedRow" hidden><input type="checkbox" id="backupSaved"><span>I've saved the backup file and know where to find it.</span></label>
+    <label class="inline" id="noBackupRow" hidden><input type="checkbox" id="noBackupOk"><span>I understand that this updater can only take me back to official firmware 1.0.6.</span></label>
+    <h3>Patterns and settings</h3>
+    <p>Reads all 32 patterns and your RD-6's settings (such as its MIDI channels) and saves them to a file. Nothing on the RD-6 changes. Press STOP first.</p>
+    <div class="row"><button id="savePatterns" disabled>Save patterns and settings</button></div>
+    <div id="patternsStatus" class="status idle" role="status">Connect your RD-6 first (step 1).</div>
+  </section>
+
+  <section id="step3">
+    <h2><span class="n">3</span> Install or restore</h2>
+    <div class="choices" role="radiogroup" aria-label="What do you want to do?">
+      <label class="choice"><input type="radio" name="action" value="install" checked><span><strong>Install Scatter</strong><small>Add the Scatter effects to your RD-6.</small></span></label>
+      <label class="choice"><input type="radio" name="action" value="restore"><span><strong>Restore</strong><small>Go back to official firmware or to your backup.</small></span></label>
     </div>
+
+    <div id="installOptions">
+      <p class="hint">Scatter is built on Behringer firmware 1.0.5, so afterwards your RD-6 reports version 1.0.5. That's expected. Your patterns and settings are stored separately and installing doesn't change them, but saving them in step 2 first is a good idea.</p>
+      <label class="inline"><input type="checkbox" id="understand"><span>I understand Scatter is unofficial, experimental firmware.</span></label>
+    </div>
+
+    <div id="restoreOptions" hidden>
+      <fieldset>
+        <legend>Restore what?</legend>
+        <label class="choice"><input type="radio" name="restoreFrom" value="official" checked><span><strong>Official firmware 1.0.6</strong><small>Behringer's latest version. No file needed.</small></span></label>
+        <label class="choice"><input type="radio" name="restoreFrom" value="file"><span><strong>Firmware from a file</strong><small>Your firmware backup (.json) or a firmware file (.syx).</small></span></label>
+        <label class="choice"><input type="radio" name="restoreFrom" value="patterns"><span><strong>Patterns and settings from a file</strong><small>Your patterns and settings backup (.json). Doesn't change the firmware.</small></span></label>
+      </fieldset>
+      <div id="patternsChooser" hidden>
+        <div class="row"><input type="file" id="patternsFile" accept=".json" aria-label="Patterns and settings backup file"></div>
+        <div id="patternsFileStatus" class="status idle">No file chosen.</div>
+      </div>
+      <div id="fileChooser" hidden>
+        <div class="row"><input type="file" id="restoreFile" accept=".json,.syx" aria-label="Backup or firmware file"></div>
+        <div id="restoreFileStatus" class="status idle">No file chosen.</div>
+        <div id="unpinnedBox" hidden>
+          <label class="inline"><input type="checkbox" id="allowUnpinned"><span>Use this unrecognised file anyway. To confirm, type the first 8 characters of its checksum:</span></label>
+          <div class="row"><input type="text" id="unpinnedConfirm" size="10" class="mono" autocomplete="off" aria-label="First 8 characters of the checksum"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row"><button id="start" class="primary big" disabled>Install Scatter</button><button id="abort" class="danger" hidden>Stop</button></div>
+    <p id="startHint" class="hint"></p>
+    <progress id="prog" max="383" value="0" hidden></progress>
+    <div id="xferStatus" class="status idle" role="status">Nothing running.</div>
+    <div class="row" id="logRow" hidden><button id="reconnect3" class="primary" hidden>Reconnect</button><button id="saveLog">Save log file</button></div>
+  </section>
+
+  <details id="advanced">
+    <summary>Advanced</summary>
+
+    <h3>Connection</h3>
+    <div class="row"><label class="inline">MIDI port name <input type="text" id="portName" value="RHYTHM DESIGNER RD-6" size="26"></label></div>
+    <p class="hint">Usually found automatically. Change it only if your RD-6 shows up under another name.</p>
     <div id="portStatus" class="status idle">MIDI not requested.</div>
-    <div class="row">
-      <button id="identity" disabled>Identity query (08)</button>
-      <button id="enterUpdate" disabled>Enter update mode (03 30)</button>
+    <label class="inline"><input type="checkbox" id="useSim"><span>Use a simulated RD-6 (for testing; nothing is sent to hardware)</span></label>
+    <div class="sim" id="simPanel" hidden>
+      <p>A software RD-6 that answers the way the test unit did, with optional faults.</p>
+      <div class="row">
+        <label class="inline">Fault
+          <select id="simFault">
+            <option value="none">none</option>
+            <option value="nack">NACK (01 00 01) at block</option>
+            <option value="silent">no reply at block</option>
+            <option value="dup">duplicate ACK at block</option>
+            <option value="appmode">device stays in application mode</option>
+          </select></label>
+        <label class="inline">block <input type="text" id="simBlock" value="120" size="4"></label>
+        <label class="inline"><input type="checkbox" id="simFast" checked><span>fast (no 10 s restart wait)</span></label>
+      </div>
+      <div id="simStatus" class="status idle">Simulator idle.</div>
     </div>
-    <div id="devStatus" class="status idle">Device state unknown.</div>
-    <p>Select firmware in section 1 before entering update mode. Already in update mode? Use Identity query to check, then continue to section 3 without entering again.</p>
-  </section>
 
-  <section class="sim" id="simPanel" hidden>
-    <h2><span class="n">·</span> Simulator</h2>
-    <p>This is a software RD-6 that answers the way your device did in the TEST01–TEST03 logs, with optional faults injected. No hardware is involved.</p>
-    <div class="row">
-      <label class="inline">Fault
-        <select id="simFault">
-          <option value="none">none</option>
-          <option value="nack">NACK (01 00 01) at block</option>
-          <option value="silent">no reply at block</option>
-          <option value="dup">duplicate ACK at block</option>
-          <option value="appmode">device stays in application mode</option>
-        </select></label>
-      <label class="inline">block <input type="text" id="simBlock" value="120" size="4"></label>
-      <label class="inline"><input type="checkbox" id="simFast" checked> fast (no 10 s reboot wait)</label>
-    </div>
-    <div id="simStatus" class="status idle">Simulator idle.</div>
-  </section>
+    <h3>Firmware files</h3>
+    <div class="row"><button id="saveScatter">Save Scatter v1.2 as a .syx file</button></div>
+    <p class="hint">Builds Scatter v1.2 on this computer from the official 1.0.5 file and saves it. Official files: <a href="../firmware/RD-6_V1.0.6.syx" download>1.0.6</a> · <a href="../firmware/RD-6_V1.0.5.syx" download>1.0.5</a>.</p>
+    <div id="fileStatus" class="status idle">No firmware prepared yet.</div>
+    <ul id="fileChecks" class="checks"></ul>
 
-  <section>
-    <h2><span class="n">3</span> Transfer</h2>
-    <p>Stop playback before entering update mode (step 2). The transfer starts by sending <code>08 40</code>, which only update mode answers with an ACK. If the application answers instead, nothing more is sent.</p>
+    <h3>Diagnostics</h3>
+    <p class="hint">Single steps for troubleshooting. Install and Restore already do these for you.</p>
     <div class="row">
-      <label class="inline"><input type="checkbox" id="understand"> I understand this writes experimental firmware with no proven recovery.</label>
+      <button id="enterUpdate" disabled>Enter update mode only</button>
+      <button id="preamble" disabled>Send update handshake only (no firmware)</button>
     </div>
-    <div class="row">
-      <button id="preamble" disabled>Preamble only (no firmware)</button>
-      <button id="send" class="primary" disabled>Send firmware</button>
-      <button id="abort" class="danger" disabled>Abort after current frame</button>
-    </div>
-    <progress id="prog" max="383" value="0"></progress>
-    <div id="xferStatus" class="status idle">Idle.</div>
-  </section>
 
-  <section>
-    <h2><span class="n">4</span> Log</h2>
+    <h3>Log</h3>
     <div class="row">
-      <button id="download" disabled>Download JSON evidence</button>
-      <label class="inline"><input type="checkbox" id="showTraffic"> show tx/rx bytes</label>
+      <button id="download" disabled>Download log</button>
+      <label class="inline"><input type="checkbox" id="showTraffic"><span>Show MIDI bytes</span></label>
     </div>
     <div id="log" class="mono"></div>
-  </section>
+  </details>
+
+  <footer>Help: <a href="https://github.com/tracelistener/rd6-scatter#readme">README</a> · <a href="https://github.com/tracelistener/rd6-scatter/blob/main/docs/CONTROLS.md">Controls</a> · <a href="https://github.com/tracelistener/rd6-scatter/blob/main/docs/BACKUP_RESTORE.md">Backup, restore and troubleshooting</a></footer>
 </main>
 
 <script>
@@ -191,33 +243,90 @@ function applicationVersion(frame) {
 const Q_VERSION = cat(PREFIX, hex('08 f7'));
 const Q_UPDATE_MODE = cat(PREFIX, hex('08 40 f7'));
 const ENTER_UPDATE = cat(PREFIX, hex('03 30 f7'));
+// Patterns and settings, from the stock SysEx handler (the same in 1.0.5 and 1.0.6; Scatter
+// leaves it unchanged). Application mode only. 77 gg pp asks for one pattern (group 0..1,
+// pattern 0..15); the reply is 78 gg pp + its 22 stored bytes as 44 nibbles, high nibble
+// first. Sending that same 78 frame back saves the pattern and is ACKed. 75 asks for the six
+// settings bytes (reply 76 s1..s6); each is written back with the command noted below.
+const NACK_APP = cat(PREFIX, hex('01 01 00 f7'));
+const Q_SETTINGS = cat(PREFIX, hex('75 f7'));
+const PATTERN_BYTES = 22, PATTERN_SLOTS = 32;
+const SETTINGS = [{ max: 15 }, { max: 16 }, { cmd: 0x19, max: 1 }, { cmd: 0x1a, max: 3 }, { cmd: 0x1b, max: 3 }, { cmd: 0x1c, max: 127 }];   // s1 and s2 are set together by 0E
+const PATTERNS_FORMAT = 'rd6-patterns-settings-backup-v1';
+const patternRequest = (g, p) => cat(PREFIX, Uint8Array.of(0x77, g, p, 0xf7));
+function patternFrame(g, p, data) {
+  const nibbles = new Uint8Array(PATTERN_BYTES * 2);
+  data.forEach((b, i) => { nibbles[2 * i] = b >> 4; nibbles[2 * i + 1] = b & 15; });
+  return cat(PREFIX, Uint8Array.of(0x78, g, p), nibbles, Uint8Array.of(0xf7));
+}
+function parsePatternFrame(f, g, p) {
+  if (f.length !== 56 || !eq(f.subarray(0, 8), PREFIX) || f[8] !== 0x78 || f[9] !== g || f[10] !== p || f[55] !== 0xf7) return null;
+  const data = new Uint8Array(PATTERN_BYTES);
+  for (let i = 0; i < PATTERN_BYTES; i++) { const hi = f[11 + 2 * i], lo = f[12 + 2 * i]; if (hi > 15 || lo > 15) return null; data[i] = (hi << 4) | lo; }
+  return data;
+}
+function parseSettingsFrame(f) {
+  if (f.length !== 16 || !eq(f.subarray(0, 8), PREFIX) || f[8] !== 0x76 || f[15] !== 0xf7) return null;
+  return Array.from(f.subarray(9, 15));
+}
+function settingsFrames(v) {
+  return [cat(PREFIX, Uint8Array.of(0x0e, 0, v[0], v[1], 0xf7)), ...[2, 3, 4, 5].map(i => cat(PREFIX, Uint8Array.of(SETTINGS[i].cmd, v[i], 0xf7)))];
+}
+// Every update file starts with these five setup frames; analyse() checks them byte-for-byte.
+const SETUP_FRAMES = ['04 f7', '06 f7', '08 40 f7', '08 00 f7', '03 30 f7'].map(s => cat(PREFIX, hex(s)));
 const EXCHANGE_TIMEOUT_MS = 2000;   // same conservative abort policy as the Python sender
 const REBOOT_WAIT_MS = 10000;       // vendor text: at least ten seconds
+const ENTRY_WAIT_MS = 15000;        // how long to watch for the USB re-enumeration after 03 30
+// Chrome on Windows can miss the RD-6's quick USB re-enumeration after 03 30. It then keeps
+// the port "connected" but nothing sent or received gets through, for as long as the page
+// lives. Reloading the page gives a fresh MIDI connection (confirmed on hardware 2026-10-17).
+// Reconnect stores the user's choices and log, reloads, and connects again after this pause.
+const RECONNECT_KEY = 'rd6-updater-reconnect';
+const RECONNECT_DELAY_MS = 2500;
 
 // Pinned images. Only these are accepted without the explicit unpinned override.
 const PINNED = {
   '2cdce8d2ae225feb21a153d69669c3406410893e9d1882ac0c8fb5391468b97b':
-    {name:'TEST14_FIX106 (offline checked; hardware test pending)',bin:'a35f762f853885ba3545e2afe991defaaff527cb9e1b73975f754b5e51a9f5a9',allowed:true},
+    {name:'Scatter v1 (built as TEST14_FIX106; older build)',bin:'a35f762f853885ba3545e2afe991defaaff527cb9e1b73975f754b5e51a9f5a9',allowed:true, label:'Scatter v1 (older build)', kind:'scatter'},
+  '8bbc359ebdf78357f7233556bf2843d53b34e8a1a52a4f1c0b8b83a9db9d41dc':
+    { name: 'Scatter v1.2 (step lights follow the played step; Scatter stays on in Pattern Write)', bin: '1f5c1dad6efb53e6bba33bcbb32f9f490080b9d564ba99d0fc789efe7865bf95', allowed: true, label: 'Scatter v1.2', kind: 'scatter' },
   '4446914dffce8152dc7f7c0065de52d266f062a6499a22a8fef36b221982cfc3':
-    { name: 'Stock RD-6 1.0.6', bin: 'e20968a504ccf4302039cb99cfe647acab4f8bd12515b87a8828fd61a46d1656', allowed: true },
+    { name: 'Stock RD-6 1.0.6', bin: 'e20968a504ccf4302039cb99cfe647acab4f8bd12515b87a8828fd61a46d1656', allowed: true, label: 'Official firmware 1.0.6', kind: 'official' },
   '9bc1c3a74da476c6694724314d275030a7debb4299c561d06cf56f4e55b540ef':
-    { name: 'TEST12_GLITCH (current tested build)', bin: 'bfea2b995c8ce5caea87ab68bae48ae28bbe78f5de4c79b5d7e6bdfc3ddec826', allowed: true },
+    { name: 'TEST12_GLITCH (older tested build)', bin: 'bfea2b995c8ce5caea87ab68bae48ae28bbe78f5de4c79b5d7e6bdfc3ddec826', allowed: true, label: 'Scatter TEST12 (older build)', kind: 'scatter' },
   '7bbf8ef8e9efd4378178389bbb8df07ce91112252bb31e4e5262799c65631155':
-    { name: 'TEST03_PANEL (historical)', bin: 'ec1ab10372b34b670060941f7cdea17bcd14eb274e6fc2b3d72ea90652d97a8f', allowed: true },
+    { name: 'TEST03_PANEL (historical)', bin: 'ec1ab10372b34b670060941f7cdea17bcd14eb274e6fc2b3d72ea90652d97a8f', allowed: true, label: 'Scatter TEST03 (old test build)', kind: 'scatter' },
   '757563928bb5a861f585f9ac733f39e837520a290b6f01627569b85addee9cdb':
-    { name: 'TEST01 (engine only, hardware-tested)', bin: '7ad451b76a3fc6b4227d96c83cdd13f4ce990dd94559a0dbc34cb829ab77426d', allowed: true },
+    { name: 'TEST01 (engine only, hardware-tested)', bin: '7ad451b76a3fc6b4227d96c83cdd13f4ce990dd94559a0dbc34cb829ab77426d', allowed: true, label: 'Scatter TEST01 (old test build)', kind: 'scatter' },
   '29fc1fb89a951a864e294764d2fe8bba4ad1ce890f9c308f09944749321571eb':
-    { name: 'Stock RD-6 1.0.5 (rollback candidate)', bin: '41f0f3036da380db1c9696fa77e341e5a2500f90e091a4d804f311f102a3d650', allowed: true },
+    { name: 'Stock RD-6 1.0.5 (rollback candidate)', bin: '41f0f3036da380db1c9696fa77e341e5a2500f90e091a4d804f311f102a3d650', allowed: true, label: 'Official firmware 1.0.5', kind: 'official' },
   '910ad0db1454be4830c2f31d0b7f53d0558b9801387ddfbb4a4360c1e6c0e569':
-    { name: 'TEST02_PANEL (superseded: stale held-step defect)', bin: 'b4f7cc8ecd4716feb9350ea1af86f76cfe585af64c9c5c5aeaad47a075520ea9', allowed: false },
+    { name: 'TEST02_PANEL (superseded: stale held-step defect)', bin: 'b4f7cc8ecd4716feb9350ea1af86f76cfe585af64c9c5c5aeaad47a075520ea9', allowed: false, label: 'Scatter TEST02 (withdrawn test build)', kind: 'scatter' },
 };
-let PATCH_RELATIVE = 'TEST12.patch.json';
-const STOCK_SHA = '29fc1fb89a951a864e294764d2fe8bba4ad1ce890f9c308f09944749321571eb';
-let TARGET_SHA = '9bc1c3a74da476c6694724314d275030a7debb4299c561d06cf56f4e55b540ef';
+const STOCK_SHA = '29fc1fb89a951a864e294764d2fe8bba4ad1ce890f9c308f09944749321571eb';      // official 1.0.5: Scatter patch input
+const STOCK106_SHA = '4446914dffce8152dc7f7c0065de52d266f062a6499a22a8fef36b221982cfc3';   // official 1.0.6: default restore
+const OFFICIAL = { '1.0.5': STOCK_SHA, '1.0.6': STOCK106_SHA };
+// Scatter v1.2: v1 plus step lights that follow the played step and Scatter staying on in
+// Pattern Write (source/build_scatter_v1_2.py).
+const SCATTER = { id: 'SCATTER_V1_2', label: 'Scatter v1.2', patch: 'scatter-v1.2.patch.json', sha: '8bbc359ebdf78357f7233556bf2843d53b34e8a1a52a4f1c0b8b83a9db9d41dc', file: 'RD6_Scatter_v1.2.syx' };
+const BACKUP_FORMAT = 'rd6-firmware-file-backup-v1';
+const BACKUP_KINDS = ['official-download-not-device-dump', 'user-supplied-file-not-device-dump'];
 
-// ---------------------------------------------------------------- logging
-const S = { patchSource: null, backup: null, backupDownloaded: false, restoreMode: false, image: null, midi: null, transport: null, busy: false, abort: false, events: [], started: null, t0: performance.now(), deviceMode: 'unknown' };
+// ---------------------------------------------------------------- state and logging
+const S = {
+  midi: null, busy: false, transferring: false, abort: false, events: [], started: null, t0: performance.now(), mode: null,
+  device: { mode: 'unknown', version: null, known: null },    // known: 'official' | 'scatter' | 'other' | null
+  backup: { key: null, downloaded: false, fileName: null, error: null },
+  restoreFile: null, fileToken: 0, image: null,
+  touched: false, firmwareStarted: false, allAcked: false, stopArmed: null,
+  reconnect: null, reconnectWritten: null, logImage: null,   // reconnect: where to offer it, 'connect' | 'start'
+  patternFile: null, patternToken: 0,
+};
 const $ = id => document.getElementById(id);
+class UserError extends Error {}    // message is already written for the user
+// No answer at all, or the port vanished: the signs of a lost Chrome MIDI connection.
+const SILENCE = /device reply timeout|expected application identity not received|not present|need exactly one connected/;
+const isSilence = e => !(e instanceof UserError) && SILENCE.test(String(e && e.message || e));
 function log(event, values = {}) {
   const row = { event, elapsed_ms: Math.round((performance.now() - S.t0) * 1000) / 1000, ...values };
   S.events.push(row);
@@ -228,7 +337,12 @@ function log(event, values = {}) {
   $('download').disabled = false;
   return row;
 }
+function newLog(mode) { S.events = []; S.started = new Date().toISOString(); S.t0 = performance.now(); S.mode = mode; $('log').textContent = ''; }
 function status(id, cls, text) { const el = $(id); el.className = 'status ' + cls; el.textContent = text; }
+const radio = name => document.querySelector(`input[name="${name}"]:checked`)?.value ?? null;
+const action = () => radio('action');
+const restoreFrom = () => radio('restoreFrom');
+const answer105 = () => radio('fw105');
 
 // ---------------------------------------------------------------- file parsing (mirrors decrypt_rd6.py)
 function splitSysex(data) {
@@ -254,6 +368,7 @@ function unpack7(d) {
 }
 const le7 = (m, o) => m[o] | (m[o + 1] << 7) | (m[o + 2] << 14) | (m[o + 3] << 21);
 async function sha256(buf) { const h = await crypto.subtle.digest('SHA-256', buf); return toHex(new Uint8Array(h)).replace(/ /g, ''); }
+const toBase64 = bytes => btoa(Array.from(bytes, x => String.fromCharCode(x)).join(''));
 
 async function analyse(bytes) {
   const checks = [];
@@ -267,8 +382,7 @@ async function analyse(bytes) {
   ok(frames.every(f => eq(f.subarray(0, 8), PREFIX)), 'every frame has device-ID-0 RD-6 prefix');
   const cmds = frames.slice(0, 6).map(f => f[8]);
   ok(eq(cmds, [4, 6, 8, 8, 3, 10]), `setup/header commands 04 06 08 08 03 0A: ${cmds.map(c => c.toString(16).padStart(2, '0')).join(' ')}`);
-  const setup = ['04 f7', '06 f7', '08 40 f7', '08 00 f7', '03 30 f7'].map(s => cat(PREFIX, hex(s)));
-  ok(setup.every((s, i) => frames[i] && eq(frames[i], s)), 'five setup frames match the observed preamble byte-for-byte');
+  ok(SETUP_FRAMES.every((s, i) => frames[i] && eq(frames[i], s)), 'five setup frames match the observed preamble byte-for-byte');
   const data = frames.slice(6);
   let counterOk = data.length === 377, raw = [];
   for (let i = 0; i < data.length && counterOk; i++) {
@@ -305,24 +419,23 @@ async function analyse(bytes) {
   return { hash, pin, checks, frames, valid, binHash, stack, reset, version };
 }
 
+// Analyse an image, show its checks under Advanced and make it the image to write.
 async function loadImage(bytes, label) {
-  S.image = null; S.restoreMode = label.startsWith('Restore:'); refresh();
+  S.image = null;
   const a = await analyse(bytes);
-  S.image = a;
-  const list = $('fileChecks'); list.innerHTML = '';
+  S.image = a; S.logImage = a.hash;
+  const list = $('fileChecks'); list.replaceChildren();
   for (const c of a.checks) { const li = document.createElement('li'); li.className = c.pass ? 'pass' : 'fail'; li.textContent = c.text; list.appendChild(li); }
-  $('unpinnedBox').hidden = !(a.valid && !a.pin);
-  $('allowUnpinned').checked = false; $('unpinnedConfirm').value = '';
   const summary = `${label}\nSHA-256 ${a.hash}`;
   if (!a.valid) status('fileStatus', 'bad', `${summary}\nREFUSED: structural checks failed.`);
   else if (a.pin && a.pin.allowed) status('fileStatus', 'ok', `${summary}\nPinned: ${a.pin.name}. Header version ${a.version}.`);
   else if (a.pin) status('fileStatus', 'bad', `${summary}\nREFUSED: ${a.pin.name}.`);
   else status('fileStatus', 'warn', `${summary}\nNot a pinned image. Structure is valid (header version ${a.version}). Explicit override required.`);
   log('image_loaded', { label, image_sha256: a.hash, pinned: a.pin ? a.pin.name : null, valid: a.valid, decoded_sha256: a.binHash });
-  refresh();
+  return a;
 }
-function imageSendable() {
-  const a = S.image; if (!a || !a.valid) return false;
+function sendable(a) {
+  if (!a || !a.valid) return false;
   if (a.pin) return a.pin.allowed;
   return $('allowUnpinned').checked && $('unpinnedConfirm').value.trim().toLowerCase() === a.hash.slice(0, 8);
 }
@@ -392,11 +505,38 @@ const WebMidiTransport = {
     return n(S.midi.inputs) === 1 && n(S.midi.outputs) === 1;
   },
 };
+// Use the configured port name if it matches exactly one RD-6; otherwise adopt the
+// only connected port pair whose name mentions RD-6 (names differ between systems).
+function findRd6() {
+  const connected = it => [...it.values()].filter(p => p.state === 'connected');
+  const ins = connected(S.midi.inputs), outs = connected(S.midi.outputs);
+  const count = name => [ins.filter(p => p.name === name).length, outs.filter(p => p.name === name).length];
+  const [i, o] = count($('portName').value);
+  if (i === 1 && o === 1) return null;
+  if (i > 1 || o > 1) return 'More than one RD-6 is connected. Connect only the one you want to update, then click Connect again.';
+  const names = [...new Set([...ins, ...outs].map(p => p.name))].filter(n => /\bRD-?6\b/i.test(n));
+  if (names.length === 1) {
+    const [a, b] = count(names[0]);
+    if (a === 1 && b === 1) { $('portName').value = names[0]; log('port_name_detected', { name: names[0] }); return null; }
+  }
+  if (names.length > 1) return 'Found more than one MIDI port that looks like an RD-6. Connect only one RD-6, or set the port name under Advanced.';
+  return 'No RD-6 found. Check that it is switched on and connected by USB, and that SynthTribe and other music apps are closed. Then click Connect again.';
+}
+function showPorts() {
+  if (!S.midi || $('useSim').checked) return;
+  const list = it => [...it.values()].map(p => `${p.name}${p.state === 'connected' ? '' : ' (' + p.state + ')'}`).join(', ') || 'none';
+  const found = WebMidiTransport.present();
+  status('portStatus', found ? 'ok' : 'warn', `Inputs: ${list(S.midi.inputs)}\nOutputs: ${list(S.midi.outputs)}\n` +
+    (found ? `Using "${$('portName').value}".` : `No single "${$('portName').value}" input/output pair found.`));
+}
 
-// Simulated RD-6, modelled on the TEST01–TEST03 transfer logs.
+// Simulated RD-6, modelled on the TEST01–TEST03 transfer logs; patterns and settings follow
+// the stock SysEx handler described above.
+const simPatterns = () => Array.from({ length: PATTERN_SLOTS }, (_, i) => Uint8Array.from({ length: PATTERN_BYTES }, (_, k) => k === 0 ? 16 : k < 4 ? 0 : (i * 37 + k * 11) & 0xff));
 const Sim = {
   mode: 'app', version: '1.0.5', present_: true, session: null, received: [], blocks: 0, dupPending: false,
-  reset() { this.mode = 'app'; this.version='1.0.5'; this.present_ = true; this.received = []; this.blocks = 0; this.update(); },
+  patterns: simPatterns(), settings: [9, 9, 0, 0, 0, 0],
+  reset() { this.mode = 'app'; this.version='1.0.5'; this.present_ = true; this.received = []; this.blocks = 0; this.patterns = simPatterns(); this.settings = [9, 9, 0, 0, 0, 0]; this.update(); },
   update(extra = '') { status('simStatus', 'idle', `Simulated device: ${this.present_ ? this.mode + ' mode' : 'disconnected (USB re-enumerating)'}; firmware frames received ${this.received.length}. ${extra}`); },
   reply(f, delay) { const s = this.session; setTimeout(() => { if (this.present_ && s === this.session) s._rx(f); }, delay); },
   disconnect(ms, then) { this.present_ = false; this.session = null; this.update(); setTimeout(() => { this.present_ = true; then(); this.update(); }, ms); },
@@ -416,6 +556,28 @@ const Sim = {
       if (body === '03 30' && fault !== 'appmode') {
         this.reply(ACK, quick()); this.reply(ACK, 3);
         setTimeout(() => this.disconnect(400, () => { this.mode = 'update'; this.received = []; }), 1050);
+      }
+      if (body === '75') return this.reply(cat(PREFIX, Uint8Array.of(0x76, ...this.settings, 0xf7)), quick());
+      if ((f[8] === 0x77 && f.length === 12) || (f[8] === 0x78 && f.length === 56)) {
+        const g = f[9], p = f[10], slot = g * 16 + p;
+        if (g > 1 || p > 15) return this.reply(NACK_APP, quick());
+        if (slot === at && fault === 'silent') return;
+        if (slot === at && fault === 'nack') return this.reply(NACK_APP, quick());
+        let answer = ACK;
+        if (f[8] === 0x77) answer = patternFrame(g, p, this.patterns[slot]);
+        else { const data = parsePatternFrame(f, g, p); if (!data) return this.reply(NACK_APP, quick()); this.patterns[slot] = data; }
+        this.reply(answer, 2 + Math.random() * 10);
+        if (slot === at && fault === 'dup') this.reply(answer, 20);
+        return;
+      }
+      if (f[8] === 0x0e && f.length === 13) {
+        if (f[10] > SETTINGS[0].max || f[11] > SETTINGS[1].max) return this.reply(NACK_APP, quick());
+        this.settings[0] = f[10]; this.settings[1] = f[11]; return this.reply(ACK, quick());
+      }
+      const setting = SETTINGS.findIndex(x => x.cmd === f[8]);
+      if (setting >= 2 && f.length === 11) {
+        if (f[9] > SETTINGS[setting].max) return this.reply(NACK_APP, quick());
+        this.settings[setting] = f[9]; return this.reply(ACK, quick());
       }
       return;
     }
@@ -460,48 +622,38 @@ async function exchange(s, frame, expected, timeout = EXCHANGE_TIMEOUT_MS) {
   return Math.round((performance.now() - t) * 1000) / 1000;
 }
 
-async function guarded(fn) {
-  if (S.busy) return; S.busy = true; S.abort = false; refresh();
-  let s = null;
-  try { await fn(x => (s = x)); }
-  catch (e) { log('aborted', { reason: String(e.message || e), automatic_retry: false }); throw e; }
-  finally { if (s && !s.closed) s.close(); S.busy = false; refresh(); }
-}
-
-async function doIdentity() {
-  await guarded(async keep => {
-    const s = keep(await openSession());
+// Read-only check: application mode answers 08 with its version; update mode
+// answers 08 with an ACK or ignores it and ACKs the read-only 08 40.
+async function identify() {
+  const s = await openSession();
+  try {
     const pre = await s.collect(200);
     if (pre.length) log('pre_query_traffic', { count: pre.length });
     s.send(Q_VERSION);
     const replies = await s.collect(1000);
-    const observedVersion = replies.map(applicationVersion).find(v=>v!==null);
-    const isUpdateAck = replies.some(r => eq(r, ACK));
-    if (observedVersion) { S.deviceMode='application'; log('stock_identity_confirmed',{version:observedVersion}); status('devStatus','ok',`Application mode, version ${observedVersion}. Version alone does not identify a custom build.`); }
-    else if (isUpdateAck) { S.deviceMode = 'update'; status('devStatus', 'warn', 'Device answered 08 with an ACK. It looks like it is already in update mode.'); }
-    else if(!replies.length){
-      await exchange(s,Q_UPDATE_MODE,ACK);S.deviceMode='update';log('already_in_update_mode_confirmed');
-      status('devStatus','ok','Already in update mode (08 40 confirmed). No firmware was sent. Next: select stock 1.0.6 in section 1, then Restore selected firmware in section 3.');
-    }
-    else { S.deviceMode = 'unknown'; status('devStatus', 'bad', 'No application version reply: ' + replies.map(toHex).join(' | ')); }
-  }).catch(e => status('devStatus', 'bad', e.message));
+    const version = replies.map(applicationVersion).find(v => v !== null);
+    if (version) { log('stock_identity_confirmed', { version }); return { mode: 'application', version }; }
+    if (replies.some(r => eq(r, ACK))) { log('update_mode_ack_to_version_query'); return { mode: 'update', version: null }; }
+    if (!replies.length) { await exchange(s, Q_UPDATE_MODE, ACK); log('already_in_update_mode_confirmed'); return { mode: 'update', version: null }; }
+    throw new Error('no application version reply: ' + replies.map(toHex).join(' | '));
+  } finally { if (!s.closed) s.close(); }
 }
 
-async function doEnterUpdate() {
-  if (!confirm('Send update-mode entry (03 30)? The RD-6 will disconnect and come back in update mode. No firmware is written by this step.')) return;
-  await guarded(async keep => {
-    let s = keep(await openSession());
+// Sends 03 30 only after the application identity is confirmed, then watches the
+// port disappear and return. Returns { gone, back }; no firmware is written.
+async function enterUpdateMode() {
+  const s = await openSession();
+  try {
     await s.collect(200);
     s.send(Q_VERSION);
     const observedVersion=(await s.collect(1000)).map(applicationVersion).find(v=>v!==null);
     if (!observedVersion) throw new Error('expected application identity not received; stopping (already in update mode?)');
     log('stock_identity_confirmed',{version:observedVersion});
     s.send(ENTER_UPDATE);
-    status('devStatus', 'warn', 'Entry sent; waiting for the device to re-enumerate (up to 15 s)...');
     // Watch presence from the moment of sending: on hardware the port vanished ~1.05 s
     // and returned ~1.45 s after entry, so a fixed 1 s collect first could miss the gap.
     const t = performance.now(); let gone = false, back = false, acks = 0;
-    while (performance.now() - t < 15000) {
+    while (performance.now() - t < ENTRY_WAIT_MS) {
       if (!s.closed) acks += s.take().filter(r => eq(r, ACK)).length;
       const p = transport().present();
       if (!p && !gone) { gone = true; log('port_absent', {}); if (!s.closed) s.close(); }
@@ -510,221 +662,666 @@ async function doEnterUpdate() {
     }
     log('entry_acks', { count: acks, note: 'two observed on hardware' });
     if (!s.closed) s.close();
-    if (!back) { status('devStatus', gone ? 'bad' : 'warn', gone ? 'Port did not come back within 15 s.' : 'Browser did not observe a disconnect. No firmware sent. Use Identity query to check update mode, then continue to section 3. The transfer guard refuses application mode.'); return; }
-    await sleep(500);   // settle so stale entry ACKs cannot be taken as data ACKs
-    S.deviceMode = 'update';
-    status('devStatus', 'ok', 'Re-enumerated after entry. No firmware sent yet. Next: '+(S.restoreMode?'Restore selected firmware':'Send firmware')+' in section 3. The transfer re-checks update mode before writing.');
-  }).catch(e => status('devStatus', 'bad', e.message));
+    if (back) await sleep(500);   // settle so stale entry ACKs cannot be taken as data ACKs
+    return { gone, back };
+  } finally { if (!s.closed) s.close(); }
 }
 
-async function doTransfer(preambleOnly) {
-  if (!imageSendable() || !S.backup || !S.backupDownloaded || !$('backupSaved').checked || !$('understand').checked) return;
-  if (!preambleOnly && !confirm(`${S.restoreMode ? 'Restore' : 'Write'} ${S.image.pin ? S.image.pin.name : 'UNPINNED image ' + S.image.hash.slice(0, 16)} to the RD-6?\n\nNo automatic retry. Do not unplug until the reboot check finishes.`)) return;
-  S.events = S.events.filter(e => e.event === 'image_loaded').slice(-1);
-  S.started = new Date().toISOString(); S.t0 = performance.now(); $('log').textContent = '';
-  S.mode = preambleOnly ? 'preamble_only' : S.restoreMode ? 'restore' : 'transfer';
-  const frames = S.image.frames;
-  const prog = $('prog'); prog.value = 0;
-  let wakeLock = null;
-  try { wakeLock = await navigator.wakeLock?.request('screen'); } catch (_) {}
-  await guarded(async keep => {
-    let s = keep(await openSession());
+// Writes S.image (or only the setup handshake). Starts with the read-only 08 40 guard,
+// which only update mode ACKs: if the application answers instead, nothing more is sent.
+async function transferImage(preambleOnly, onStep) {
+  const frames = preambleOnly ? SETUP_FRAMES : S.image.frames;
+  const prog = $('prog');
+  let s = await openSession();
+  try {
     if ((await s.collect(250)).length) throw new Error('unexpected traffic on fresh input');
-    // Stock application answers VERSION; observed update session answers ACK.
     await exchange(s, Q_UPDATE_MODE, ACK);
     log('observed_update_mode_response_confirmed');
-    status('xferStatus', 'warn', 'Update mode confirmed. Sending preamble...');
+    onStep('Update mode confirmed. Starting the transfer...');
     const expected = [MODEL, PRODUCT, ACK, ACK, ACK];
     for (let i = 0; i < 5; i++) { log('preamble_reply', { frame_index: i, latency_ms: await exchange(s, frames[i], expected[i]) }); prog.value = i + 1; }
     if ((await s.collect(500)).length) throw new Error('extra setup reply; refusing to use it as firmware ACK');
-    if (preambleOnly) { log('preamble_complete', { firmware_headers_sent: 0, firmware_data_sent: 0 }); status('xferStatus', 'ok', 'Preamble complete. No firmware header or data sent. The device is still in update mode.'); return; }
+    if (preambleOnly) { log('preamble_complete', { firmware_headers_sent: 0, firmware_data_sent: 0 }); return; }
     const lat = [];
+    S.transferring = true; refresh();
     for (let i = 5; i < frames.length; i++) {
       if (S.abort) throw new Error(`user abort before frame ${i}; device holds a partial image (${i - 5} of 378 firmware frames acknowledged)`);
+      S.firmwareStarted = true;
       const l = await exchange(s, frames[i], ACK); lat.push(l);
       log('firmware_ack', { frame_index: i, block: i >= 6 ? i - 6 : null, latency_ms: l });
       prog.value = i + 1;
-      if (i % 8 === 0 || i === frames.length - 1) status('xferStatus', 'warn', `Writing... ${i - 4} / 378 firmware frames acknowledged. Do not unplug.`);
+      if (i % 8 === 0 || i === frames.length - 1) onStep(`Writing firmware... ${i - 4} of 378. Don't unplug the RD-6.`);
     }
+    S.transferring = false; refresh();
     // ACKs carry no sequence number: a late duplicate or trailing NACK would otherwise go unseen.
     const trailing = await s.collect(500);
     if (trailing.length) throw new Error('extra reply after the final ACK; an earlier ACK may have been a late duplicate. Do NOT assume the image was written: ' + JSON.stringify(trailing.map(toHex)));
+    S.allAcked = true;
     log('all_firmware_frames_acknowledged', { count: lat.length, min_ms: Math.min(...lat), max_ms: Math.max(...lat), note: 'ACKs prove transfer acceptance, not successful execution.' });
     s.close();
     const wait = ($('useSim').checked && $('simFast').checked) ? 1500 : REBOOT_WAIT_MS;
-    for (let left = wait; left > 0; left -= 1000) { status('xferStatus', 'warn', `All 378 firmware frames acknowledged. Waiting for reboot... ${Math.ceil(left / 1000)} s`); await sleep(Math.min(1000, left)); }
-    s = keep(await openSession());
+    for (let left = wait; left > 0; left -= 1000) { onStep(`Firmware written. Waiting for your RD-6 to restart... ${Math.ceil(left / 1000)} s`); await sleep(Math.min(1000, left)); }
+    s = await openSession();
     await s.collect(250);
-    const expectedReply=versionReply(S.image.version);
-    const reply=toHex(expectedReply);
-    log('application_version_reply_after_transfer',{latency_ms:await exchange(s,Q_VERSION,expectedReply),version:S.image.version,note:'Reply matches the file header version; this is not flash readback or custom-build identification.'});
-    S.deviceMode = 'application';
-    status('xferStatus', 'ok', `Done. All 378 firmware frames were ACKed and the application answered after reboot (${reply}). ${S.restoreMode ? 'Stock/saved-file restore transfer completed. Check normal Play/Stop.' : 'Check normal Play/Stop and the Scatter controls.'} Download the evidence.`);
-    status('devStatus', 'ok', 'Application mode (post-transfer reply).');
-  }).catch(e => status('xferStatus', 'bad', 'ABORTED: ' + e.message + '\nNo automatic retry. Download the log before doing anything else.'));
-  try { await wakeLock?.release(); } catch (_) {}
+    log('application_version_reply_after_transfer',{latency_ms:await exchange(s,Q_VERSION,versionReply(S.image.version)),version:S.image.version,note:'Reply matches the file header version; this is not flash readback or custom-build identification.'});
+  } finally {
+    S.transferring = false;
+    if (!s.closed) s.close();
+  }
 }
 
-// ---------------------------------------------------------------- UI wiring
-function refresh() {
-  const haveDev = $('useSim').checked || !!S.midi;
-  const saved = !!S.backup && S.backupDownloaded && $('backupSaved').checked;
-  $('saveBackup').disabled = S.busy || !S.backup;
-  $('loadPinned').disabled = S.busy || !saved || (S.patchSource ? S.patchSource.hash : S.backup.hash) !== STOCK_SHA;
-  for (const id of ['file','stockFile','restoreFile','backupSaved','buildChoice','downloadStock','selectStockRestore']) $(id).disabled = S.busy;
-  $('identity').disabled = S.busy || !haveDev;
-  $('enterUpdate').disabled = S.busy || !haveDev || !saved || !imageSendable();
-  const ready = !S.busy && saved && haveDev && imageSendable() && $('understand').checked;
-  $('preamble').disabled = !ready; $('send').disabled = !ready;
-  $('send').textContent = S.restoreMode ? 'Restore selected firmware' : 'Send firmware';
-  $('abort').disabled = !S.busy;
-  $('simPanel').hidden = !$('useSim').checked;
-  document.body.classList.toggle('simulating', $('useSim').checked);
+// Like exchange(), for requests whose single reply carries data: parse() returns null for anything else.
+async function request(s, frame, parse, timeout = EXCHANGE_TIMEOUT_MS) {
+  if (s.take().length) throw new Error('unsolicited pending reply before send; refusing ambiguous transaction');
+  s.send(frame);
+  if (!(await s.waitFrame(timeout))) throw new Error('device reply timeout; no automatic retry');
+  await sleep(0);
+  const replies = s.take();
+  const value = replies.length === 1 ? parse(replies[0]) : null;
+  if (value === null) throw new Error('unexpected, failed or duplicate reply: ' + JSON.stringify(replies.map(toHex)));
+  return value;
 }
+// Read-only: copies all 32 patterns (77 -> 78) and the settings (75 -> 76) out of the RD-6.
+async function readPatternsAndSettings(onProgress) {
+  const s = await openSession();
+  try {
+    if ((await s.collect(250)).length) throw new Error('unexpected traffic on fresh input');
+    const patterns = [];
+    for (let g = 0; g < 2; g++) for (let p = 0; p < 16; p++) {
+      patterns.push({ group: g, number: p, data: await request(s, patternRequest(g, p), f => parsePatternFrame(f, g, p)) });
+      onProgress(patterns.length);
+    }
+    const settings = await request(s, Q_SETTINGS, parseSettingsFrame);
+    if ((await s.collect(300)).length) throw new Error('extra reply after the last answer; refusing a possibly mixed-up backup');
+    log('patterns_read', { patterns: patterns.length, settings });
+    return { patterns, settings };
+  } finally { if (!s.closed) s.close(); }
+}
+// Writes each pattern (78, ACKed after it is saved) and then the settings. Stops at the first
+// missing or unexpected answer; patterns already written stay written.
+async function writePatternsAndSettings(backup, onProgress) {
+  const s = await openSession();
+  let done = 0;
+  try {
+    if ((await s.collect(250)).length) throw new Error('unexpected traffic on fresh input');
+    for (const { group, number, data } of backup.patterns) {
+      await exchange(s, patternFrame(group, number, data), ACK);
+      onProgress(++done);
+    }
+    for (const frame of settingsFrames(backup.settings)) { await exchange(s, frame, ACK); onProgress(++done); }
+    if ((await s.collect(300)).length) throw new Error('extra reply after the last ACK');
+    log('patterns_written', { patterns: backup.patterns.length, settings: backup.settings });
+  } finally { S.patternsWritten = Math.min(done, PATTERN_SLOTS); if (!s.closed) s.close(); }
+}
+const hexOf = bytes => Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+// The checksum covers the pattern bytes in slot order followed by the six settings bytes.
+async function patternsChecksum(patterns, settings) { return sha256(cat(...patterns.map(p => p.data), Uint8Array.from(settings))); }
 
-$('file').addEventListener('change', async e => { const f=e.target.files[0];if(!f)return;S.image=null;S.restoreMode=false;status('fileStatus','idle','Reading selected firmware file...');refresh();await loadImage(new Uint8Array(await f.arrayBuffer()),f.name); });
-function downloadBytes(bytes, name, type) {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([bytes], {type})); a.download = name; a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-}
-async function setBackup(bytes, label, restored=false, origin='supplied') {
-  S.backup = null; S.backupDownloaded = false; $('backupSaved').checked = false; refresh();
-  const a = await analyse(bytes);
-  if (!a.valid || (a.pin && !a.pin.allowed)) throw new Error('Restore file failed firmware validation.');
-  S.backup = {bytes:bytes.slice(), hash:a.hash, label, origin};
-  S.backupDownloaded = restored;
-  status('backupStatus','ok',`${label}\nSHA-256 ${a.hash}\n${restored ? 'Backup verified. Confirm it is saved before restoring.' : (origin==='official' ? 'Verified official stock 1.0.6, ready to save for restoration. No device memory was read.' : 'Ready to save a copy of your supplied file; no device memory was read.')}`);
-  refresh();
-}
-$('stockFile').addEventListener('change',async e=>{
-  try { const f=e.target.files[0];if(!f)return;S.patchSource=null;S.backup=null;S.backupDownloaded=false;S.image=null;S.restoreMode=false;$('backupSaved').checked=false;status('backupStatus','idle','Reading supplied firmware file...');refresh();await setBackup(new Uint8Array(await f.arrayBuffer()),f.name); }
-  catch(e){status('backupStatus','bad',e.message);}
-});
-function saveRestoreCopy(){
-  if(!S.backup || S.busy) return;
-  const b=S.backup;
-  const doc={format:'rd6-firmware-file-backup-v1',kind:b.origin==='official'?'official-download-not-device-dump':'user-supplied-file-not-device-dump',name:b.label,sha256:b.hash,created:new Date().toISOString(),syx_base64:btoa(Array.from(b.bytes,x=>String.fromCharCode(x)).join(''))};
-  downloadBytes(JSON.stringify(doc,null,2)+'\n',`RD6_RESTORE_${b.hash.slice(0,12)}.json`,'application/json');
-  S.backupDownloaded=true;status('backupStatus','ok','Restore-copy download requested. Locate and keep it; then confirm it is saved before preparing Scatter. No device firmware was read.');refresh();
-}
-$('saveBackup').addEventListener('click',saveRestoreCopy);
-const STOCK106_SHA='4446914dffce8152dc7f7c0065de52d266f062a6499a22a8fef36b221982cfc3';
-function selectBuild(){
-  const fixed=$('buildChoice').value==='test14';
-  TARGET_SHA=fixed?'2cdce8d2ae225feb21a153d69669c3406410893e9d1882ac0c8fb5391468b97b':'9bc1c3a74da476c6694724314d275030a7debb4299c561d06cf56f4e55b540ef';
-  PATCH_RELATIVE=fixed?'TEST14.patch.json':'TEST12.patch.json';
-  S.image=null;status('fileStatus','idle','Build selected. Prepare Scatter after saving your restore copy.');
-  $('buildNote').textContent=fixed?'TEST14 adds the documented 1.0.6 pattern-group fix to TEST12. Offline checked; physical TEST14 testing pending. Application version remains 1.0.5; diagnostic marker remains 12.':'Original TEST12 passed hardware listening and power-cycle checks. It does not contain the 1.0.6 queued-pattern selection fix.';
-  refresh();
-}
-$('buildChoice').addEventListener('change',selectBuild);
+// ---------------------------------------------------------------- firmware files
 async function fetchStock(version,expected){
-  const response=await fetch('../firmware/RD-6_V'+version+'.syx',{cache:'no-cache',signal:AbortSignal.timeout(30000)});
-  if(!response.ok)throw new Error('Stock '+version+' download failed (HTTP '+response.status+').');
+  let response;
+  try { response=await fetch('../firmware/RD-6_V'+version+'.syx',{cache:'no-cache',signal:AbortSignal.timeout(30000)}); }
+  catch(e){ throw new UserError(`Couldn't download official firmware ${version}. Check your internet connection and try again. (${e.message})`); }
+  if(!response.ok)throw new UserError(`Couldn't download official firmware ${version} (HTTP ${response.status}). Try again later.`);
   const bytes=new Uint8Array(await response.arrayBuffer());
-  if(bytes.length!==116186 || await sha256(bytes)!==expected)throw new Error('Stock '+version+' checksum/size mismatch; nothing prepared.');
+  if(bytes.length!==116186 || await sha256(bytes)!==expected)throw new UserError(`The downloaded official firmware ${version} failed its checksum (mismatch), so it was not used. Try again later.`);
   const image=await analyse(bytes);
-  if(!image.valid || image.version!==version)throw new Error('Stock '+version+' structure/version mismatch.');
+  if(!image.valid || image.version!==version)throw new UserError(`The downloaded official firmware ${version} failed its structure check, so it was not used.`);
   return {bytes,hash:expected};
 }
-$('selectStockRestore').addEventListener('click',async()=>{
-  if(S.busy)return;
-  S.busy=true;S.image=null;S.restoreMode=false;refresh();
-  status('fileStatus','idle','Selecting verified stock 1.0.6 for restore...');
-  let save=false;
-  try{
-    let bytes=S.backup?.hash===STOCK106_SHA ? S.backup.bytes : null;
-    if(!bytes){
-      const stock=await fetchStock('1.0.6',STOCK106_SHA);bytes=stock.bytes;
-      await setBackup(bytes,'RD-6_V1.0.6.syx',false,'official');save=true;
-    }
-    await loadImage(bytes,'Restore: Stock RD-6 1.0.6');
-    status('xferStatus','idle','Stock 1.0.6 selected. No firmware sent. Confirm your saved restore copy and the transfer acknowledgement, then click Restore selected firmware. If already in update mode, do not enter it again.');
-  }catch(e){S.image=null;status('fileStatus','bad',e.message);}
-  finally{S.busy=false;refresh();}
-  if(save)saveRestoreCopy();
-});
-$('downloadStock').addEventListener('click',async()=>{
-  if(S.busy)return;
-  S.busy=true;S.patchSource=null;S.backup=null;S.backupDownloaded=false;S.image=null;S.restoreMode=false;$('backupSaved').checked=false;refresh();
-  status('fileStatus','idle','No firmware selected. Downloading stock packages...');$('fileChecks').replaceChildren();
-  status('backupStatus','idle','Downloading and verifying official stock 1.0.6 and 1.0.5...');
-  let ready=false;
-  try{
-    const [restore,base]=await Promise.all([fetchStock('1.0.6',STOCK106_SHA),fetchStock('1.0.5',STOCK_SHA)]);
-    await setBackup(restore.bytes,'RD-6_V1.0.6.syx',false,'official');S.patchSource=base;ready=true;
-  }catch(e){S.patchSource=null;S.backup=null;S.backupDownloaded=false;S.image=null;status('backupStatus','bad',e.message);}
-  finally{S.busy=false;refresh();}
-  if(ready)saveRestoreCopy();
-});
-selectBuild();
-async function applyPatch(bytes,p) {
-  if(p.format!=='rd6-syx-replacements-v1' || p.source_sha256!==STOCK_SHA || p.target_sha256!==TARGET_SHA || bytes.length!==p.size || await sha256(bytes)!==STOCK_SHA) throw new Error('Scatter requires the exact stock1.0.5 file (SHA-256 mismatch).');
+async function applyPatch(bytes,p,targetSha) {
+  if(p.format!=='rd6-syx-replacements-v1' || p.source_sha256!==STOCK_SHA || p.target_sha256!==targetSha || bytes.length!==p.size || await sha256(bytes)!==STOCK_SHA) throw new Error('Scatter requires the exact stock 1.0.5 file (SHA-256 mismatch).');
   const out=bytes.slice();let end=0;
   for(const run of p.runs){
     if(!Array.isArray(run)||run.length!==2||!Number.isInteger(run[0])||run[0]<end) throw new Error('Invalid or overlapping patch range.');
     const data=Uint8Array.from(atob(run[1]),c=>c.charCodeAt(0));end=run[0]+data.length;
     if(!data.length||end>out.length) throw new Error('Patch range outside file.');out.set(data,run[0]);
   }
-  if(await sha256(out)!==TARGET_SHA) throw new Error('Patched Scatter hash mismatch; no firmware loaded.');
+  if(await sha256(out)!==targetSha) throw new Error('Patched Scatter hash mismatch; no firmware loaded.');
   return out;
 }
-$('loadPinned').addEventListener('click',async()=>{
-  if(S.busy)return;S.busy=true;refresh();
+// Scatter is built on this computer: official 1.0.5 plus the published byte patch.
+async function prepareScatter(build) {
+  const base = await fetchStock('1.0.5', STOCK_SHA);
+  let r;
+  try { r = await fetch(build.patch, { cache: 'no-cache', signal: AbortSignal.timeout(30000) }); }
+  catch (e) { throw new UserError(`Couldn't download the Scatter patch. Check your internet connection and try again. (${e.message})`); }
+  if (!r.ok) throw new UserError(`Couldn't download the Scatter patch (HTTP ${r.status}). Try again later.`);
+  return applyPatch(base.bytes, await r.json(), build.sha);
+}
+function downloadBytes(bytes, name, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([bytes], {type})); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+const localDate = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+// ---------------------------------------------------------------- device and backup state
+// The RD-6 cannot send its firmware to a computer, so a backup is the official
+// file for the version the RD-6 reports. Scatter also reports 1.0.5, so for 1.0.5
+// the user says which one is installed unless this page installed it.
+function firmwareKind() {
+  const d = S.device;
+  if (d.known) return d.known;
+  if (d.version === '1.0.6') return 'official';
+  if (d.version === '1.0.5') return answer105();
+  return null;
+}
+function backupPlan() {
+  const d = S.device;
+  if (d.mode === 'unknown') return { need: 'connect', text: 'Connect your RD-6 first (step 1).' };
+  if (d.mode === 'update') return { need: 'none', text: "Your RD-6 is in update mode, so the firmware on it can't be identified and there is nothing to back up. You can still install Scatter or restore official firmware in step 3." };
+  const kind = firmwareKind();
+  if (!kind) {
+    if (d.version === '1.0.5') return { need: 'answer', text: 'Answer the question above, so the updater knows what to back up.' };
+  } else if (kind === 'scatter') {
+    return { need: 'none', text: "Scatter is already installed, so there is nothing to back up. You can reinstall Scatter, or restore official firmware 1.0.6, at any time." };
+  } else if (kind === 'official' && OFFICIAL[d.version]) {
+    return { need: 'save', version: d.version, text: `Your RD-6 runs official firmware ${d.version}. Save a backup so you can go back to it later.` };
+  } else if (kind === 'other') {
+    return { need: 'ack', text: `Your RD-6 runs a firmware file this updater doesn't recognise (it reports version ${d.version}), so it can't make a backup of it. You can go back to official firmware 1.0.6 from this page at any time.` };
+  }
+  return { need: 'ack', text: `Your RD-6 runs firmware version ${d.version}. This updater doesn't have a copy of that version, so it can't make a backup. You can go back to official firmware 1.0.6 from this page at any time, or install Behringer's newest firmware with their SynthTribe app.` };
+}
+const backupKey = () => `${S.device.mode}|${S.device.version}|${firmwareKind() || ''}`;
+function backupOk() {
+  const p = backupPlan();
+  if (p.need === 'none') return true;
+  if (p.need === 'save') return S.backup.downloaded && S.backup.key === backupKey() && $('backupSaved').checked;
+  if (p.need === 'ack') return $('noBackupOk').checked;
+  return false;
+}
+function setDevice(next) {
+  const d = S.device;
+  // Keep what this page knows about the firmware while the RD-6 still reports the same thing.
+  const known = next.known !== undefined ? next.known : (next.mode === d.mode && next.version === d.version ? d.known : null);
+  if (next.mode !== d.mode || (next.version || null) !== d.version) S.patternsMsg = null;
+  S.device = { mode: next.mode, version: next.version || null, known };
+  if (S.backup.key !== backupKey()) { $('backupSaved').checked = false; $('noBackupOk').checked = false; }
+  if (S.device.mode !== 'application' || S.device.version !== '1.0.5') document.querySelectorAll('input[name="fw105"]').forEach(r => { r.checked = false; });
+}
+function deviceText() {
+  const d = S.device;
+  if (d.mode === 'update') return 'Connected. Your RD-6 is in update mode: it is waiting for new firmware. Use step 3 to install Scatter or restore the official firmware.';
+  if (d.mode !== 'application') return 'Not connected.';
+  if (d.known === 'scatter') return `Connected. Your RD-6 is running Scatter (it reports version ${d.version}).`;
+  if (d.version === '1.0.6') return "Connected. Your RD-6 reports firmware version 1.0.6, Behringer's latest official version.";
+  if (d.version === '1.0.5' && d.known === 'official') return 'Connected. Your RD-6 is running official firmware 1.0.5.';
+  return `Connected. Your RD-6 reports firmware version ${d.version}.`;
+}
+
+// ---------------------------------------------------------------- page state
+function startBlocker() {
+  if (S.device.mode === 'unknown') return S.reconnect ? 'Click Reconnect first.' : 'Connect your RD-6 first (step 1).';
+  if (action() === 'install') {
+    const p = backupPlan();
+    if (p.need === 'answer') return 'Answer the question in step 2 first.';
+    if (p.need === 'save' && !backupOk()) return S.backup.downloaded && S.backup.key === backupKey() ? 'Tick the box in step 2 to confirm you saved the backup file.' : 'Save your backup first (step 2).';
+    if (p.need === 'ack' && !backupOk()) return 'Tick the box in step 2 first.';
+    if (!$('understand').checked) return 'Tick the box above to confirm you understand Scatter is experimental.';
+    return null;
+  }
+  if (restoreFrom() === 'patterns') {
+    if (S.device.mode !== 'application') return 'Your RD-6 is in update mode. Install or restore firmware first, then restore your patterns.';
+    if (!S.patternFile) return 'Choose your patterns and settings backup first.';
+    return null;
+  }
+  if (restoreFrom() === 'file') {
+    if (!S.restoreFile) return 'Choose your backup file or a firmware file first.';
+    if (!sendable(S.restoreFile.analysis)) return 'This file is not recognised. Confirm it above to use it anyway.';
+  }
+  return null;
+}
+function renderBackup() {
+  const p = backupPlan();
+  let cls = p.need === 'none' ? 'ok' : p.need === 'ack' ? 'warn' : 'idle', text = p.text;
+  if (p.need === 'save' && S.backup.error) { cls = 'bad'; text = S.backup.error; }
+  else if (p.need === 'save' && S.backup.downloaded && S.backup.key === backupKey()) {
+    cls = 'ok'; text = `Backup saved as ${S.backup.fileName}. Look for it in your Downloads folder and keep it somewhere safe, then tick the box below.`;
+  }
+  status('backupStatus', cls, text);
+  $('ask105').hidden = !(S.device.mode === 'application' && S.device.version === '1.0.5' && !S.device.known);
+  $('saveBackupRow').hidden = p.need !== 'save';
+  $('saveBackup').className = S.backup.downloaded && S.backup.key === backupKey() ? '' : 'primary';
+  $('saveBackup').textContent = S.backup.downloaded && S.backup.key === backupKey() ? 'Save backup again' : 'Save backup';
+  $('backupSavedRow').hidden = p.need !== 'save';
+  $('backupSaved').disabled = S.busy || !(S.backup.downloaded && S.backup.key === backupKey());
+  $('noBackupRow').hidden = p.need !== 'ack';
+}
+function refresh() {
+  const sim = $('useSim').checked, install = action() === 'install', fromFile = !install && restoreFrom() === 'file';
+  const patternsMode = !install && restoreFrom() === 'patterns';
+  renderBackup();
+  $('installOptions').hidden = !install;
+  $('restoreOptions').hidden = install;
+  $('fileChooser').hidden = !fromFile;
+  $('patternsChooser').hidden = !patternsMode;
+  $('unpinnedBox').hidden = !(S.restoreFile && !S.restoreFile.analysis.pin);
+  $('start').textContent = install ? 'Install Scatter' : fromFile ? 'Restore firmware from file' : patternsMode ? 'Restore patterns and settings' : 'Restore official firmware 1.0.6';
+  const blocker = startBlocker();
+  $('start').disabled = S.busy || blocker !== null;
+  let hint = blocker || (patternsMode ? 'Takes a few seconds. Replaces all 32 patterns and the settings on your RD-6.' : "Takes under a minute. Your RD-6 restarts when it's done.");
+  $('savePatterns').disabled = S.busy || S.device.mode !== 'application';
+  if (!S.busy && !S.patternsMsg) status('patternsStatus', 'idle', S.device.mode === 'application' ? 'Ready when you are.'
+    : S.device.mode === 'update' ? "Your RD-6 is in update mode, so its patterns can't be read right now." : 'Connect your RD-6 first (step 1).');
+  if (!blocker && !install && !fromFile && S.device.version === '1.0.6' && firmwareKind() === 'official') hint = 'Your RD-6 already reports official firmware 1.0.6. Restoring it again is allowed but not needed.';
+  if (!S.transferring && S.stopArmed) { clearTimeout(S.stopArmed); S.stopArmed = null; }
+  $('startHint').textContent = !S.busy ? hint : S.stopArmed ? "Stopping now leaves your RD-6 without working firmware until you install or restore again." : '';
+  $('abort').hidden = !S.transferring;
+  $('abort').disabled = !S.transferring || S.abort;
+  $('abort').textContent = S.abort ? 'Stopping...' : S.stopArmed ? 'Click again to stop' : 'Stop';
+  document.querySelectorAll('input[type=radio]').forEach(r => { r.disabled = S.busy; });
+  for (const id of ['connect', 'saveBackup', 'restoreFile', 'patternsFile', 'understand', 'noBackupOk', 'allowUnpinned', 'unpinnedConfirm', 'useSim', 'portName', 'saveScatter']) $(id).disabled = S.busy;
+  $('reconnect1').hidden = S.reconnect !== 'connect';
+  $('reconnect3').hidden = S.reconnect !== 'start';
+  $('connect').className = S.reconnect === 'connect' ? '' : 'primary';
+  $('reconnect1').disabled = $('reconnect3').disabled = S.busy;
+  $('enterUpdate').disabled = S.busy || S.device.mode !== 'application' || !backupOk();
+  $('preamble').disabled = S.busy || S.device.mode === 'unknown';
+  $('simPanel').hidden = !sim;
+  document.body.classList.toggle('simulating', sim);
+}
+
+// ---------------------------------------------------------------- actions
+async function doConnect() {
+  if (S.busy) return;
+  S.busy = true; refresh();
+  status('devStatus', 'idle', 'Looking for your RD-6...');
   try {
-    const r=await fetch(PATCH_RELATIVE);if(!r.ok)throw new Error('Cannot load patch: '+r.status);
-    const bytes=await applyPatch((S.patchSource||S.backup).bytes,await r.json());
-    const build=$('buildChoice').value==='test14'?'TEST14_FIX106':'TEST12_GLITCH';
-    await loadImage(bytes,build+' prepared locally');
-    downloadBytes(bytes,'RD6_SCATTER_'+build+'_1.0.5.syx','application/octet-stream');
-  }catch(e){S.image=null;status('fileStatus','bad',e.message);}
-  finally{S.busy=false;refresh();}
-});
-$('restoreFile').addEventListener('change',async e=>{
-  try {
-    const f=e.target.files[0];if(!f)return;S.patchSource=null;S.image=null;S.backup=null;S.backupDownloaded=false;$('backupSaved').checked=false;refresh();let bytes=new Uint8Array(await f.arrayBuffer());
-    if(f.name.toLowerCase().endsWith('.json')){
-      const doc=JSON.parse(new TextDecoder().decode(bytes));
-      if(doc.format!=='rd6-firmware-file-backup-v1'||!['user-supplied-file-not-device-dump','official-download-not-device-dump'].includes(doc.kind))throw new Error('Not an RD-6 restore-file backup.');
-      bytes=Uint8Array.from(atob(doc.syx_base64),c=>c.charCodeAt(0));
-      if(await sha256(bytes)!==doc.sha256)throw new Error('Backup checksum mismatch; restore refused.');
+    if (!$('useSim').checked) {
+      if (!navigator.requestMIDIAccess) throw new UserError("This browser can't talk to MIDI devices. Please use Chrome or Edge on a computer.");
+      if (!S.midi) {
+        try { S.midi = await navigator.requestMIDIAccess({ sysex: true }); }
+        catch (e) { throw new UserError(`The browser didn't allow MIDI access. Click Connect again and choose Allow. (${e.message})`); }
+        S.midi.onstatechange = onMidiStateChange;
+      }
+      const problem = findRd6();
+      showPorts();
+      if (problem) throw new UserError(problem);
     }
-    await setBackup(bytes,f.name,true);await loadImage(bytes,'Restore: '+f.name);
-  }catch(e){S.image=null;status('backupStatus','bad',e.message);refresh();}
-});
-['allowUnpinned', 'unpinnedConfirm', 'understand', 'backupSaved'].forEach(id => $(id).addEventListener('input', refresh));
-$('useSim').addEventListener('change', () => { if ($('useSim').checked) Sim.reset(); status('portStatus', $('useSim').checked ? 'warn' : 'idle', $('useSim').checked ? 'Using the SIMULATED RD-6. No hardware is touched.' : (S.midi ? 'Web MIDI ready.' : 'MIDI not requested.')); refresh(); });
-$('connect').addEventListener('click', async () => {
-  if (!navigator.requestMIDIAccess) { status('portStatus', 'bad', 'This browser has no Web MIDI. Use Chrome or Edge (desktop).'); return; }
+    status('devStatus', 'idle', 'Checking your RD-6...');
+    setDevice(await identify());
+    S.reconnect = null;
+    status('devStatus', 'ok', deviceText());
+  } catch (e) {
+    log('connect_failed', { reason: String(e.message || e) });
+    setDevice({ mode: 'unknown', version: null });
+    if (isSilence(e)) {
+      S.reconnect = 'connect'; S.reconnectWritten = null;
+      status('devStatus', 'bad', `Your RD-6 didn't answer. Chrome may have lost its connection to it, which can happen after the RD-6 switches to update mode or restarts. Click Reconnect to reload this page and connect again.\n\nDetails: ${e.message}`);
+    } else status('devStatus', 'bad', e instanceof UserError ? e.message : `Your RD-6 didn't answer as expected. Close other music apps and click Connect again.\n\nDetails: ${e.message}`);
+  } finally { S.busy = false; refresh(); }
+}
+function onMidiStateChange() {
+  showPorts();
+  if (S.busy || $('useSim').checked || S.device.mode === 'unknown' || WebMidiTransport.present()) return;
+  setDevice({ mode: 'unknown', version: null });
+  status('devStatus', 'warn', 'Your RD-6 was disconnected. Plug it back in and click Connect.');
+  refresh();
+}
+
+// Saves the user's choices and the current log, then reloads; resumeAfterReconnect()
+// picks them up and connects again.
+function doReconnect() {
+  if (S.busy) return;
+  const stash = { v: 1, at: Date.now(), action: action(), restoreFrom: restoreFrom(),
+    understand: $('understand').checked, sim: $('useSim').checked, written: S.reconnectWritten,
+    expectVersion: S.image ? S.image.version : null, expectKind: S.image ? (S.image.pin ? S.image.pin.kind : 'other') : null,
+    log: { started: S.started, mode: S.mode, image_sha256: S.logImage, events: S.events } };
+  log('reconnect_requested', { written: S.reconnectWritten });
+  try { sessionStorage.setItem(RECONNECT_KEY, JSON.stringify(stash)); } catch (_) {}
+  location.reload();
+}
+async function resumeAfterReconnect() {
+  let stash = null;
+  try { stash = JSON.parse(sessionStorage.getItem(RECONNECT_KEY) || 'null'); sessionStorage.removeItem(RECONNECT_KEY); } catch (_) { stash = null; }
+  if (!stash || stash.v !== 1 || !(Date.now() - stash.at < 10 * 60 * 1000)) return;
+  const pick = (name, value) => { const r = document.querySelector(`input[name="${name}"][value="${value}"]`); if (r) r.checked = true; };
+  pick('action', stash.action); pick('restoreFrom', stash.restoreFrom);
+  $('understand').checked = !!stash.understand;
+  if (stash.sim) { $('useSim').checked = true; Sim.reset(); status('portStatus', 'warn', 'Using the SIMULATED RD-6. No hardware is touched.'); }
+  // Keep the failed run's log so it can still be saved after the reload.
+  if (stash.log && Array.isArray(stash.log.events)) {
+    S.events = stash.log.events; S.started = stash.log.started; S.mode = stash.log.mode; S.logImage = stash.log.image_sha256;
+    $('log').textContent = S.events.filter(r => r.event !== 'tx' && r.event !== 'rx').map(r => JSON.stringify(r)).join('\n') + '\n';
+    $('logRow').hidden = false;
+  }
+  log('reconnect_reload', { at: new Date().toISOString(), written: stash.written });
+  status('devStatus', 'idle', 'Reconnecting to your RD-6...');
+  status('xferStatus', 'idle', "Reloaded this page to reset Chrome's connection to your RD-6. Connecting...");
+  refresh();
+  await sleep(RECONNECT_DELAY_MS);   // let the old page's MIDI session close first
+  await doConnect();
+  const d = S.device;
+  if (d.mode === 'unknown') {
+    status('xferStatus', 'bad', 'Still no answer from your RD-6. Close any other browser tabs that use MIDI devices, then click Reconnect again.' +
+      (stash.written === 'none' ? "\nIf that doesn't help, unplug the RD-6's USB cable, plug it back in and click Connect. No firmware has been written, so this is safe." : ''));
+  } else if (stash.written === 'all' && d.mode === 'application') {
+    if (d.version === stash.expectVersion) {
+      setDevice({ mode: d.mode, version: d.version, known: stash.expectKind });
+      status('devStatus', 'ok', deviceText());
+      status('xferStatus', 'ok', `Reconnected. Your RD-6 reports version ${d.version}, so the new firmware is running. Check that it plays normally.`);
+    } else status('xferStatus', 'bad', `Reconnected, but your RD-6 reports version ${d.version}, not ${stash.expectVersion} as expected. Save the log file and open an issue on GitHub.`);
+  } else if (d.mode === 'update') {
+    status('xferStatus', 'ok', `Reconnected. Your RD-6 is in update mode and ready. Click "${$('start').textContent}" to continue.`);
+  } else status('xferStatus', 'ok', `Reconnected. Your RD-6 reports firmware version ${d.version}.`);
+  refresh();
+}
+
+async function doSaveBackup() {
+  const p = backupPlan();
+  if (S.busy || p.need !== 'save') return;
+  S.busy = true; S.backup = { key: null, downloaded: false, fileName: null, error: null }; $('backupSaved').checked = false; refresh();
   try {
-    S.midi = await navigator.requestMIDIAccess({ sysex: true });
-    const show = () => {
-      const name = $('portName').value;
-      const list = it => [...it.values()].map(p => `${p.name}${p.state === 'connected' ? '' : ' (' + p.state + ')'}`).join(', ') || 'none';
-      status('portStatus', WebMidiTransport.present() ? 'ok' : 'warn',
-        `Inputs: ${list(S.midi.inputs)}\nOutputs: ${list(S.midi.outputs)}\n` + (WebMidiTransport.present() ? `Found one "${name}" pair.` : `Exactly one "${name}" input/output pair is required.`));
+    const v = p.version, { bytes, hash } = await fetchStock(v, OFFICIAL[v]);
+    const created = new Date();
+    const doc = {
+      format: BACKUP_FORMAT,
+      kind: 'official-download-not-device-dump',
+      name: `Official RD-6 firmware ${v}`,
+      firmware: `official-${v}`,
+      device_reported_version: v,
+      note: `Made by the RD-6 Scatter updater. The RD-6 cannot send its firmware to a computer, so this is Behringer's official ${v} update file, matching the version the RD-6 reported. It does not contain patterns or settings. To restore it, open the updater and choose Restore, then From a file.`,
+      sha256: hash,
+      created: created.toISOString(),
+      syx_base64: toBase64(bytes),
     };
-    S.midi.onstatechange = show; show();
-  } catch (e) { status('portStatus', 'bad', 'MIDI access denied (SysEx permission is required): ' + e.message); }
+    const fileName = `RD6_BACKUP_official-${v}_${localDate(created)}.json`;
+    downloadBytes(JSON.stringify(doc, null, 2) + '\n', fileName, 'application/json');
+    S.backup = { key: backupKey(), downloaded: true, fileName, error: null };
+    log('backup_saved', { firmware: doc.firmware, sha256: hash, file: fileName });
+  } catch (e) {
+    S.backup = { key: null, downloaded: false, fileName: null, error: e instanceof UserError ? e.message : `Couldn't save the backup: ${e.message}` };
+  } finally { S.busy = false; refresh(); }
+}
+
+function describeFile(a, doc, fileName) {
+  if (doc && /^official-\d+\.\d+\.\d+$/.test(doc.firmware || '')) return `Backup of official firmware ${doc.firmware.slice(9)}, saved ${String(doc.created || '').slice(0, 10)}`;
+  if (doc) return `Restore file ${fileName} (${a.pin ? a.pin.label : 'version ' + a.version})`;
+  return a.pin ? `${a.pin.label} (${fileName})` : `Unrecognised firmware file ${fileName} (reports version ${a.version})`;
+}
+async function onRestoreFile(f) {
+  // Clear the previous selection first, so a damaged or slow file never inherits its approval.
+  const token = ++S.fileToken;
+  S.restoreFile = null; $('allowUnpinned').checked = false; $('unpinnedConfirm').value = '';
+  if (!f) { status('restoreFileStatus', 'idle', 'No file chosen.'); refresh(); return; }
+  status('restoreFileStatus', 'idle', 'Checking the file...'); refresh();
+  try {
+    let bytes = new Uint8Array(await f.arrayBuffer()), doc = null;
+    if (f.name.toLowerCase().endsWith('.json')) {
+      try { doc = JSON.parse(new TextDecoder().decode(bytes)); } catch { doc = null; }
+      if (!doc || doc.format !== BACKUP_FORMAT || !BACKUP_KINDS.includes(doc.kind) || typeof doc.syx_base64 !== 'string') throw new UserError("This isn't an RD-6 backup file.");
+      try { bytes = Uint8Array.from(atob(doc.syx_base64), c => c.charCodeAt(0)); } catch { throw new UserError("This backup file is damaged and can't be used."); }
+      if (await sha256(bytes) !== doc.sha256) throw new UserError("This backup file is damaged (checksum mismatch) and can't be used.");
+    }
+    const a = await analyse(bytes);
+    if (!a.valid) throw new UserError("This file isn't valid RD-6 firmware, so it can't be used.");
+    if (a.pin && !a.pin.allowed) throw new UserError(`This file is ${a.pin.label}, which is blocked because of a known defect.`);
+    if (token !== S.fileToken) return;
+    const label = describeFile(a, doc, f.name);
+    S.restoreFile = { bytes, analysis: a, label };
+    log('restore_file_selected', { file: f.name, image_sha256: a.hash, pinned: a.pin ? a.pin.name : null });
+    if (a.pin) status('restoreFileStatus', 'ok', `${label}. Ready to restore.`);
+    else status('restoreFileStatus', 'warn', `${label}.\nThe updater doesn't recognise this file. Only use it if you know where it came from.\nChecksum (SHA-256): ${a.hash}`);
+  } catch (e) {
+    if (token !== S.fileToken) return;
+    status('restoreFileStatus', 'bad', e instanceof UserError ? e.message : `Couldn't read this file: ${e.message}`);
+  }
+  refresh();
+}
+
+function successText(install, build, a) {
+  if (install) return `Done! ${build.label} is installed and your RD-6 has restarted. It reports version ${a.version}, which is expected: Scatter is built on firmware 1.0.5.\nTry it: start a pattern in PATTERN PLAY, hold FUNCTION and press TAP, press step button 1 (Roll), then hold TAP.`;
+  return `Done! ${a.pin ? a.pin.label : 'Firmware version ' + a.version} is installed and your RD-6 has restarted (it reports version ${a.version}). Check that it plays normally.`;
+}
+function failureText(e, install, lost) {
+  const detail = String(e && e.message || e);
+  if (lost) {
+    const reason = S.allAcked ? "All of the firmware was written, but your RD-6 didn't answer after restarting. Chrome may have lost its connection to it."
+      : lost.switched ? 'Chrome lost its connection to your RD-6 when the RD-6 switched to update mode. This is a known Chrome problem, not a fault in your RD-6.'
+      : "Your RD-6 didn't answer. Chrome may have lost its connection to it.";
+    const next = S.allAcked ? 'Click Reconnect to reload this page and check your RD-6.'
+      : `No firmware was written. Click Reconnect to reload this page and connect again, then click "${$('start').textContent}" to continue.`;
+    return `${install ? 'Install' : 'Restore'} stopped. ${reason}\n${next}\n\nDetails: ${detail}`;
+  }
+  const headline = e instanceof UserError ? detail
+    : /user abort/.test(detail) ? 'You pressed Stop.'
+    : /timeout/.test(detail) ? 'Your RD-6 stopped answering.'
+    : /unexpected|duplicate|unsolicited|extra/.test(detail) ? 'Your RD-6 gave an unexpected answer.'
+    : 'Something went wrong.';
+  const next = S.allAcked ? "All of the firmware was written, but your RD-6 didn't answer as expected after restarting. Wait a few seconds, then click Connect to check it."
+    : S.firmwareStarted ? "The firmware was only partly written, so your RD-6 won't work normally until an install or restore finishes.\nDon't unplug or switch off the RD-6. Save the log file below, click Connect, then choose Restore > Official firmware 1.0.6. If that fails too, stop and open an issue on GitHub with the log files. Don't keep retrying."
+    : S.touched ? 'No firmware was written. Click Connect to check your RD-6, then try again.'
+    : 'Nothing was sent to your RD-6.';
+  return `${install ? 'Install' : 'Restore'} stopped. ${headline}\n${next}` + (e instanceof UserError ? '' : `\n\nDetails: ${detail}`);
+}
+
+async function doStart() {
+  if (S.busy || startBlocker() !== null) return;
+  if (action() === 'restore' && restoreFrom() === 'patterns') return doRestorePatterns();
+  const install = action() === 'install', fromFile = !install && restoreFrom() === 'file';
+  const build = SCATTER;
+  const question = install ? `Install ${build.label} on your RD-6?` : fromFile ? `Restore this file on your RD-6?\n${S.restoreFile.label}` : 'Restore official firmware 1.0.6 on your RD-6?';
+  if (!confirm(`${question}\n\nMake sure the RD-6 is stopped (not playing). This usually takes under a minute. Keep this tab open and in front, and don't unplug the RD-6 or switch it off until the updater says Done.`)) return;
+  const restoreFileAtStart = S.restoreFile;
+  let switched = false;
+  S.busy = true; S.abort = false; S.touched = false; S.firmwareStarted = false; S.allAcked = false; S.reconnect = null;
+  newLog(install ? 'transfer' : 'restore');
+  $('logRow').hidden = true; $('prog').hidden = false; $('prog').value = 0;
+  const step = text => status('xferStatus', 'warn', text);
+  refresh();
+  let wakeLock = null;
+  try { wakeLock = await navigator.wakeLock?.request('screen'); } catch (_) {}
+  try {
+    step('Getting the firmware ready...');
+    const bytes = install ? await prepareScatter(build) : fromFile ? restoreFileAtStart.bytes : (await fetchStock('1.0.6', STOCK106_SHA)).bytes;
+    const a = await loadImage(bytes, install ? build.id + ' prepared locally' : fromFile ? 'Restore: ' + restoreFileAtStart.label : 'Restore: Stock RD-6 1.0.6');
+    if (!sendable(a)) throw new UserError('The firmware did not pass its checks (see Advanced > Firmware files).');
+    step('Checking your RD-6...');
+    S.touched = true;
+    const id = await identify();
+    if (id.mode !== S.device.mode || id.version !== S.device.version) throw new UserError('Your RD-6 has changed since you connected it.');
+    if (id.mode === 'application') {
+      step('Switching your RD-6 to update mode...');
+      const entry = await enterUpdateMode();
+      switched = true;
+      if (!entry.back) {
+        if (entry.gone) throw new UserError('Your RD-6 disconnected to switch to update mode, but did not come back within 15 seconds.');
+        // Chrome can miss the short re-enumeration; confirm update mode read-only before writing.
+        step('Checking that your RD-6 is in update mode...');
+        if ((await identify()).mode !== 'update') throw new UserError("Your RD-6 didn't switch to update mode. Make sure it is stopped (not playing).");
+      }
+    }
+    setDevice({ mode: 'update', version: null, known: null });
+    status('devStatus', 'warn', 'Your RD-6 is in update mode. Writing firmware...');
+    await transferImage(false, step);
+    setDevice({ mode: 'application', version: a.version, known: a.pin ? a.pin.kind : 'other' });
+    status('devStatus', 'ok', deviceText());
+    status('xferStatus', 'ok', successText(install, build, a));
+  } catch (e) {
+    log('aborted', { reason: String(e.message || e), automatic_retry: false });
+    // Silence before any firmware frame, or after all of them, is most likely a lost Chrome connection.
+    const lost = S.touched && isSilence(e) && (S.allAcked || !S.firmwareStarted);
+    status('xferStatus', 'bad', failureText(e, install, lost && { switched }));
+    if (lost) {
+      S.reconnect = 'start'; S.reconnectWritten = S.allAcked ? 'all' : 'none';
+      setDevice({ mode: 'unknown', version: null });
+      status('devStatus', 'warn', 'Lost the connection to your RD-6. Click Reconnect in step 3.');
+    } else if (S.touched) { setDevice({ mode: 'unknown', version: null }); status('devStatus', 'warn', 'Click Connect to check your RD-6 again.'); }
+  } finally {
+    S.busy = false; S.transferring = false; $('logRow').hidden = false; refresh();
+    try { await wakeLock?.release(); } catch (_) {}
+  }
+}
+
+async function doEnterUpdateOnly() {
+  if (S.busy) return;
+  if (!confirm('Switch your RD-6 to update mode? It disconnects and comes back in update mode. No firmware is written by this step.')) return;
+  S.busy = true; newLog('enter_update'); refresh();
+  try {
+    const r = await enterUpdateMode();
+    if (r.back) { setDevice({ mode: 'update', version: null, known: null }); status('devStatus', 'ok', 'Your RD-6 is in update mode. No firmware has been written.'); }
+    else { setDevice({ mode: 'unknown', version: null }); status('devStatus', r.gone ? 'bad' : 'warn', r.gone ? 'Your RD-6 disconnected but did not come back within 15 seconds. No firmware was written.' : 'The browser did not see your RD-6 restart. No firmware was written. Click Connect to check whether it is in update mode.'); }
+  } catch (e) {
+    log('aborted', { reason: String(e.message || e), automatic_retry: false });
+    setDevice({ mode: 'unknown', version: null });
+    status('devStatus', 'bad', `Could not switch to update mode. No firmware was written.\n\nDetails: ${e.message}`);
+  } finally { S.busy = false; refresh(); }
+}
+async function doPreambleOnly() {
+  if (S.busy) return;
+  if (!confirm('Send only the update handshake? This checks that your RD-6 is in update mode and exchanges the setup messages. No firmware is written.')) return;
+  S.busy = true; S.abort = false; newLog('preamble_only'); $('prog').hidden = false; $('prog').value = 0; refresh();
+  try {
+    await transferImage(true, text => status('xferStatus', 'warn', text));
+    status('xferStatus', 'ok', 'Handshake complete. No firmware was written. Your RD-6 is still in update mode.');
+  } catch (e) {
+    log('aborted', { reason: String(e.message || e), automatic_retry: false });
+    status('xferStatus', 'bad', `Handshake stopped. No firmware was written.\n\nDetails: ${e.message}`);
+  } finally { S.busy = false; refresh(); }
+}
+async function doSaveScatter() {
+  if (S.busy) return;
+  const build = SCATTER;
+  S.busy = true; refresh();
+  status('fileStatus', 'idle', `Preparing ${build.label}...`);
+  try {
+    const bytes = await prepareScatter(build);
+    await loadImage(bytes, build.id + ' prepared locally');
+    downloadBytes(bytes, build.file, 'application/octet-stream');
+  } catch (e) { S.image = null; status('fileStatus', 'bad', e.message); }
+  finally { S.busy = false; refresh(); }
+}
+
+// ---------------------------------------------------------------- patterns and settings
+async function doSavePatterns() {
+  if (S.busy || S.device.mode !== 'application') return;
+  S.busy = true; S.patternsMsg = null; newLog('backup_patterns'); refresh();
+  const say = (cls, text) => { S.patternsMsg = text; status('patternsStatus', cls, text); };
+  say('warn', 'Reading patterns from your RD-6...');
+  try {
+    const { patterns, settings } = await readPatternsAndSettings(n => say('warn', `Reading patterns from your RD-6... ${n} of ${PATTERN_SLOTS}`));
+    const created = new Date();
+    const doc = {
+      format: PATTERNS_FORMAT,
+      kind: 'read-from-device',
+      created: created.toISOString(),
+      device_reported_version: S.device.version,
+      firmware: firmwareKind(),
+      note: 'Made by the RD-6 Scatter updater: all 32 patterns and the six device settings, read from the RD-6 over USB. To restore them, open the updater and choose Restore, then Patterns and settings from a file.',
+      sha256: await patternsChecksum(patterns, settings),
+      settings,
+      patterns: patterns.map(p => ({ group: p.group + 1, pattern: p.number + 1, data: hexOf(p.data) })),
+    };
+    const fileName = `RD6_PATTERNS_${localDate(created)}.json`;
+    downloadBytes(JSON.stringify(doc, null, 2) + '\n', fileName, 'application/json');
+    log('patterns_saved', { file: fileName, sha256: doc.sha256 });
+    say('ok', `Saved all ${PATTERN_SLOTS} patterns and the settings as ${fileName}. Look for it in your Downloads folder.`);
+  } catch (e) {
+    log('aborted', { reason: String(e.message || e), automatic_retry: false });
+    if (isSilence(e)) {
+      S.reconnect = 'connect'; S.reconnectWritten = null; setDevice({ mode: 'unknown', version: null });
+      status('devStatus', 'bad', "Your RD-6 didn't answer. Chrome may have lost its connection to it. Click Reconnect to reload this page and connect again.");
+    }
+    say('bad', `Couldn't read the patterns, so nothing was saved. Nothing on your RD-6 changed.\n\nDetails: ${e.message}`);
+  } finally { S.busy = false; refresh(); }
+}
+async function onPatternsFile(f) {
+  const token = ++S.patternToken;
+  S.patternFile = null;
+  if (!f) { status('patternsFileStatus', 'idle', 'No file chosen.'); refresh(); return; }
+  status('patternsFileStatus', 'idle', 'Checking the file...'); refresh();
+  try {
+    let doc = null;
+    try { doc = JSON.parse(new TextDecoder().decode(new Uint8Array(await f.arrayBuffer()))); } catch { doc = null; }
+    if (!doc || doc.format !== PATTERNS_FORMAT || !Array.isArray(doc.patterns) || !Array.isArray(doc.settings)) throw new UserError("This isn't an RD-6 patterns and settings backup.");
+    const settings = doc.settings;
+    if (settings.length !== 6 || settings.some((v, i) => !Number.isInteger(v) || v < 0 || v > SETTINGS[i].max)) throw new UserError('The settings in this file are damaged.');
+    const slots = new Map();
+    for (const p of doc.patterns) {
+      const g = p && p.group, n = p && p.pattern;
+      if (!Number.isInteger(g) || !Number.isInteger(n) || g < 1 || g > 2 || n < 1 || n > 16 || typeof p.data !== 'string' || !/^[0-9a-f]{44}$/.test(p.data)) throw new UserError('A pattern in this file is damaged.');
+      slots.set((g - 1) * 16 + (n - 1), Uint8Array.from(p.data.match(/../g), h => parseInt(h, 16)));
+    }
+    if (slots.size !== PATTERN_SLOTS || doc.patterns.length !== PATTERN_SLOTS) throw new UserError(`This file doesn't contain all ${PATTERN_SLOTS} patterns.`);
+    const patterns = [...slots.keys()].sort((a, b) => a - b).map(i => ({ group: i >> 4, number: i & 15, data: slots.get(i) }));
+    if (await patternsChecksum(patterns, settings) !== doc.sha256) throw new UserError("This backup file is damaged (checksum mismatch) and can't be used.");
+    if (token !== S.patternToken) return;
+    const label = `Patterns and settings saved ${String(doc.created || '').slice(0, 10)}`;
+    S.patternFile = { patterns, settings, label };
+    log('patterns_file_selected', { file: f.name, sha256: doc.sha256 });
+    status('patternsFileStatus', 'ok', `${label} (${PATTERN_SLOTS} patterns and the settings). Ready to restore.`);
+  } catch (e) {
+    if (token !== S.patternToken) return;
+    status('patternsFileStatus', 'bad', e instanceof UserError ? e.message : `Couldn't read this file: ${e.message}`);
+  }
+  refresh();
+}
+async function doRestorePatterns() {
+  const b = S.patternFile;
+  if (!confirm(`Restore these patterns and settings to your RD-6?\n${b.label}\n\nThis replaces all ${PATTERN_SLOTS} patterns and the settings on your RD-6. Press STOP first. Your firmware isn't changed.`)) return;
+  S.busy = true; S.patternsWritten = 0; S.reconnect = null; newLog('restore_patterns');
+  $('logRow').hidden = true; $('prog').hidden = false; $('prog').max = PATTERN_SLOTS + 5; $('prog').value = 0;
+  refresh();
+  try {
+    status('xferStatus', 'warn', 'Checking your RD-6...');
+    const id = await identify();
+    if (id.mode !== 'application') throw new UserError('Your RD-6 is in update mode. Install or restore firmware first, then restore your patterns.');
+    await writePatternsAndSettings(b, n => { $('prog').value = n; status('xferStatus', 'warn', n <= PATTERN_SLOTS ? `Restoring patterns... ${n} of ${PATTERN_SLOTS}` : 'Restoring settings...'); });
+    status('xferStatus', 'ok', `Done! All ${PATTERN_SLOTS} patterns and the settings are restored.`);
+  } catch (e) {
+    log('aborted', { reason: String(e.message || e), automatic_retry: false });
+    const n = S.patternsWritten || 0;
+    const headline = e instanceof UserError ? e.message : /timeout/.test(e.message) ? 'Your RD-6 stopped answering.' : 'Your RD-6 gave an unexpected answer.';
+    const progress = n === PATTERN_SLOTS ? `All ${PATTERN_SLOTS} patterns were restored, but restoring the settings stopped part-way.`
+      : n ? `${n} of ${PATTERN_SLOTS} patterns were restored before it stopped. The others weren't changed.` : 'Nothing was changed on your RD-6.';
+    status('xferStatus', 'bad', `Restore stopped. ${headline}\n${progress} Your firmware wasn't touched. Click Connect, then try again.` + (e instanceof UserError ? '' : `\n\nDetails: ${e.message}`));
+    if (!(e instanceof UserError)) setDevice({ mode: 'unknown', version: null });
+  } finally { S.busy = false; $('prog').max = 383; $('logRow').hidden = false; refresh(); }
+}
+function downloadLog() {
+  const doc = { started: S.started || new Date().toISOString(), tool: 'rd6_webmidi_uploader.html', simulated: $('useSim').checked,
+    image_sha256: S.image ? S.image.hash : S.logImage, mode: S.mode || null, user_agent: navigator.userAgent, events: S.events };
+  downloadBytes(JSON.stringify(doc, null, 2) + '\n', `RD6_WEBMIDI_${$('useSim').checked ? 'SIM_' : ''}${(S.mode || 'session').toUpperCase()}_${new Date().toISOString().replace(/[:.]/g, '').slice(0, 15)}.json`, 'application/json');
+}
+
+// ---------------------------------------------------------------- wiring
+$('connect').addEventListener('click', doConnect);
+$('reconnect1').addEventListener('click', doReconnect);
+$('reconnect3').addEventListener('click', doReconnect);
+$('saveBackup').addEventListener('click', doSaveBackup);
+$('restoreFile').addEventListener('change', e => onRestoreFile(e.target.files[0]));
+$('savePatterns').addEventListener('click', doSavePatterns);
+$('patternsFile').addEventListener('change', e => onPatternsFile(e.target.files[0]));
+$('start').addEventListener('click', doStart);
+// Two clicks instead of confirm(): a modal dialog pauses the page, so replies and the
+// 2 s reply timeout would race once it closes.
+$('abort').addEventListener('click', () => {
+  if (!S.transferring || S.abort) return;
+  if (!S.stopArmed) { S.stopArmed = setTimeout(() => { S.stopArmed = null; refresh(); }, 5000); refresh(); return; }
+  clearTimeout(S.stopArmed); S.stopArmed = null;
+  S.abort = true; log('abort_requested'); refresh();
+});
+$('enterUpdate').addEventListener('click', doEnterUpdateOnly);
+$('preamble').addEventListener('click', doPreambleOnly);
+$('saveScatter').addEventListener('click', doSaveScatter);
+$('download').addEventListener('click', downloadLog);
+$('saveLog').addEventListener('click', downloadLog);
+document.querySelectorAll('input[type=radio]').forEach(r => r.addEventListener('change', refresh));
+['backupSaved', 'noBackupOk', 'understand', 'allowUnpinned'].forEach(id => $(id).addEventListener('change', refresh));
+$('unpinnedConfirm').addEventListener('input', refresh);
+$('useSim').addEventListener('change', () => {
+  const sim = $('useSim').checked;
+  if (sim) Sim.reset();
+  setDevice({ mode: 'unknown', version: null });
+  status('devStatus', sim ? 'warn' : 'idle', sim ? 'Simulator on. Click Connect to use the simulated RD-6.' : 'Not connected.');
+  status('portStatus', sim ? 'warn' : 'idle', sim ? 'Using the SIMULATED RD-6. No hardware is touched.' : (S.midi ? 'Web MIDI ready.' : 'MIDI not requested.'));
   refresh();
 });
-$('identity').addEventListener('click', doIdentity);
-$('enterUpdate').addEventListener('click', doEnterUpdate);
-$('preamble').addEventListener('click', () => doTransfer(true));
-$('send').addEventListener('click', () => doTransfer(false));
-$('abort').addEventListener('click', () => { S.abort = true; log('abort_requested'); });
-$('download').addEventListener('click', () => {
-  const doc = { started: S.started || new Date().toISOString(), tool: 'rd6_webmidi_uploader.html', simulated: $('useSim').checked,
-    image_sha256: S.image ? S.image.hash : null, mode: S.mode || null, user_agent: navigator.userAgent, events: S.events };
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([JSON.stringify(doc, null, 2) + '\n'], { type: 'application/json' }));
-  a.download = `RD6_WEBMIDI_${($('useSim').checked ? 'SIM_' : '')}${(S.mode || 'session').toUpperCase()}_${new Date().toISOString().replace(/[:.]/g, '').slice(0, 15)}.json`;
-  a.click(); URL.revokeObjectURL(a.href);
-});
 window.addEventListener('beforeunload', e => { if (S.busy) { e.preventDefault(); e.returnValue = ''; } });
-if (!window.isSecureContext) status('portStatus', 'bad', 'Not a secure context: Web MIDI and SHA-256 need https:// or http://localhost. Run "python -m http.server" in outputs/ and open http://localhost:8000/rd6_webmidi_uploader.html');
+if (!window.isSecureContext) status('devStatus', 'bad', 'This page must be opened from https:// or http://localhost; Web MIDI does not work otherwise. To run it on your own computer, see "Run the updater locally" in docs/TECHNICAL.md.');
 refresh();
+if (window.isSecureContext) resumeAfterReconnect();
 </script>
 </body>
 </html>
