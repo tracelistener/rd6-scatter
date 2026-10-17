@@ -1,0 +1,21 @@
+{
+  "status": "passed_browser_simulator_backup_patch_and_transfer_checks",
+  "checks": 16,
+  "passed": 16,
+  "date": "2026-10-16",
+  "scope": "Headless Chrome simulator only; no MIDI access or device writes",
+  "cases": [
+    "Pinned TEST12 prepared from user stock file",
+    "All firmware structure/hash checks",
+    "Simulated identity and update handshake",
+    "Explicit transfer acknowledgement",
+    "378 firmware ACKs and reboot reply",
+    "Byte-exact stream",
+    "Restore JSON round trip to exact stock bytes",
+    "Damaged backup clears authority and blocks send",
+    "Application-mode refusal before setup",
+    "NACK timeout and duplicate ACK abort without retry",
+    "Modified patch target checksum refusal",
+    "Modified firmware requires explicit override"
+  ]
+}

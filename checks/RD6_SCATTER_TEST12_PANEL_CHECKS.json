@@ -1,0 +1,20 @@
+{
+  "status": "passed_selected_panel_gestures_and_stock_dispatch",
+  "candidate_sha256": "bfea2b995c8ce5caea87ab68bae48ae28bbe78f5de4c79b5d7e6bdfc3ddec826",
+  "calls": 2085,
+  "max_interpreted_instructions_per_call": 967,
+  "max_stack_bytes": 80,
+  "cases": [
+    "physical Steps1..4 effects and13/14 straight/triplet; silent selection, TAP hold/release; entry stays silent",
+    "Steps5..8 depth/rate; Steps9..12 independent direction; all consumed before stock",
+    "Step15 and GROUP latch; Step16 effect-off cancels held TAP/latch until fresh press; Stop exits and restores Forward",
+    "FUNCTION+Steps1..4 quick effects held until FUNCTION release",
+    "ordinary pattern selection and settings-screen behavior retained",
+    "2000 deterministic mixed-state ARM/native comparisons"
+  ],
+  "limits": [
+    "Narrow Thumb interpreter; no physical switch bounce, scan timing, EEPROM bus or full MCU emulation",
+    "Host comparison uses same IR; named cases assert intended behavior independently",
+    "Stock dispatcher callees are intercepted to detect escape; their effects are not emulated here"
+  ]
+}

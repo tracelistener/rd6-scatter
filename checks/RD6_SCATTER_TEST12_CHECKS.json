@@ -1,0 +1,20 @@
+{
+  "status": "passed_TEST12_silent_entry_and_queued_Reverse_ARM_checks",
+  "candidate_sha256": "bfea2b995c8ce5caea87ab68bae48ae28bbe78f5de4c79b5d7e6bdfc3ddec826",
+  "queue_calls": 1925,
+  "queue_max_instructions": 931,
+  "queue_max_stack_bytes": 168,
+  "cases": [
+    "all five mode encodings/four depths: entry-held TAP suppressed across scans and both release orders; fresh TAP triggers; release ends; Stop/re-entry remembers selection without firing",
+    "effect/direction changes do not clear entry inhibit; explicit GROUP latch remains functional",
+    "real panel Reverse request after every possible step: entire current bar unchanged, next two bars exact reversed MIDI/GPIO/rest sequence",
+    "Reverse queued from Forward/Random/Ping-pong retains preceding direction until next bar",
+    "Forward/Random/Ping-pong cancel pending Reverse without delayed surprise activation",
+    "actual Stop/mode guard clears requested and effective direction",
+    "read-only marker12 status distinguishes requested Reverse from effective direction before/after bar wrap"
+  ],
+  "limits": [
+    "Selected saved Thumb paths; USB sink intercepted",
+    "Physical next-bar listening and concurrency/timing remain unverified"
+  ]
+}

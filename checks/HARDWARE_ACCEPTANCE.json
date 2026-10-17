@@ -1,0 +1,28 @@
+{
+  "build": "TEST12_GLITCH",
+  "status": "TEST12_listening_power_cycle_latch_off_directions_user_passed",
+  "date": "2026-10-16",
+  "timezone": "America/Edmonton",
+  "transfer": {
+    "image_sha256": "9bc1c3a74da476c6694724314d275030a7debb4299c561d06cf56f4e55b540ef",
+    "all_383_file_frames_transmitted_in_order_byte_exact": true,
+    "firmware_frames_acknowledged": 378,
+    "post_reboot_version_reply": true
+  },
+  "user_reported_passes": [
+    "Normal Play/Stop",
+    "All four Slice/Cut depths",
+    "Ratchet and straight/triplet captured-hit Roll",
+    "Release restores underlying playback",
+    "One power cycle: boot defaults and post-restart playback/effects",
+    "Step15 and GROUP latch",
+    "Step16 effect-off and fresh-TAP recovery",
+    "All relocated direction buttons",
+    "Roll release returns to Reverse; Forward restores normal"
+  ],
+  "limits": [
+    "No flash readback",
+    "No measured RAM liveness or interrupt/analog timing proof",
+    "External clock/chain and fast-tempo Ratchet issue remain unverified/deferred; no full MCU emulation"
+  ]
+}

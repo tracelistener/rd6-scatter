@@ -1,0 +1,308 @@
+{
+  "status": "passed_TEST12_legacy_roll_regression",
+  "candidate_sha256": "bfea2b995c8ce5caea87ab68bae48ae28bbe78f5de4c79b5d7e6bdfc3ddec826",
+  "interpreted_calls": 78741,
+  "max_instructions": 915,
+  "max_stack_bytes": 168,
+  "cases": [
+    "six real wrapper shortcuts and held-FUNCTION release; no stock pattern action",
+    "last nonempty chord captured, rests retain it, later pattern changes do not replace it",
+    "18 exact rational schedules across six step boundaries; triplet phase never reset by commands",
+    "tempo and straight/triplet rate changes preserve fractional phase; no catch-up burst",
+    "off/release cancels due hit; re-press captures a new chord; Stop and selector cancel",
+    "high gate blocks fire; busy clap removed; silent capture stays silent; invalid tempo withheld; 32-update gap enforced",
+    "new layer roll modes, all rate selections, TAP release, latch and exit suppress stock actions",
+    "all 16384 CC/value helper pairs; retired12..15 rejected and retained roll values accepted",
+    "saved stock dispatcher/trampoline suppress normal hits while held; real maintenance/body/analog emitter produces cross-step triplets; release restores normal GPIO and MIDI"
+  ],
+  "rational_clock_cases": [
+    {
+      "step_updates": 100,
+      "mode": 5,
+      "depth": 1,
+      "hit_times": [
+        200,
+        400,
+        600
+      ]
+    },
+    {
+      "step_updates": 100,
+      "mode": 5,
+      "depth": 2,
+      "hit_times": [
+        100,
+        200,
+        300,
+        400,
+        500,
+        600
+      ]
+    },
+    {
+      "step_updates": 100,
+      "mode": 5,
+      "depth": 3,
+      "hit_times": [
+        50,
+        100,
+        150,
+        200,
+        250,
+        300,
+        350,
+        400,
+        450,
+        500,
+        550,
+        600
+      ]
+    },
+    {
+      "step_updates": 100,
+      "mode": 6,
+      "depth": 1,
+      "hit_times": [
+        134,
+        267,
+        400,
+        534
+      ]
+    },
+    {
+      "step_updates": 100,
+      "mode": 6,
+      "depth": 2,
+      "hit_times": [
+        67,
+        134,
+        200,
+        267,
+        334,
+        400,
+        467,
+        534,
+        600
+      ]
+    },
+    {
+      "step_updates": 100,
+      "mode": 6,
+      "depth": 3,
+      "hit_times": [
+        34,
+        67,
+        100,
+        134,
+        167,
+        200,
+        234,
+        267,
+        300,
+        334,
+        367,
+        400,
+        434,
+        467,
+        500,
+        534,
+        567,
+        600
+      ]
+    },
+    {
+      "step_updates": 241,
+      "mode": 5,
+      "depth": 1,
+      "hit_times": [
+        482,
+        964,
+        1446
+      ]
+    },
+    {
+      "step_updates": 241,
+      "mode": 5,
+      "depth": 2,
+      "hit_times": [
+        241,
+        482,
+        723,
+        964,
+        1205,
+        1446
+      ]
+    },
+    {
+      "step_updates": 241,
+      "mode": 5,
+      "depth": 3,
+      "hit_times": [
+        121,
+        241,
+        362,
+        482,
+        603,
+        723,
+        844,
+        964,
+        1085,
+        1205,
+        1326,
+        1446
+      ]
+    },
+    {
+      "step_updates": 241,
+      "mode": 6,
+      "depth": 1,
+      "hit_times": [
+        322,
+        643,
+        964,
+        1286
+      ]
+    },
+    {
+      "step_updates": 241,
+      "mode": 6,
+      "depth": 2,
+      "hit_times": [
+        161,
+        322,
+        482,
+        643,
+        804,
+        964,
+        1125,
+        1286,
+        1446
+      ]
+    },
+    {
+      "step_updates": 241,
+      "mode": 6,
+      "depth": 3,
+      "hit_times": [
+        81,
+        161,
+        241,
+        322,
+        402,
+        482,
+        563,
+        643,
+        723,
+        804,
+        884,
+        964,
+        1045,
+        1125,
+        1205,
+        1286,
+        1366,
+        1446
+      ]
+    },
+    {
+      "step_updates": 800,
+      "mode": 5,
+      "depth": 1,
+      "hit_times": [
+        1600,
+        3200,
+        4800
+      ]
+    },
+    {
+      "step_updates": 800,
+      "mode": 5,
+      "depth": 2,
+      "hit_times": [
+        800,
+        1600,
+        2400,
+        3200,
+        4000,
+        4800
+      ]
+    },
+    {
+      "step_updates": 800,
+      "mode": 5,
+      "depth": 3,
+      "hit_times": [
+        400,
+        800,
+        1200,
+        1600,
+        2000,
+        2400,
+        2800,
+        3200,
+        3600,
+        4000,
+        4400,
+        4800
+      ]
+    },
+    {
+      "step_updates": 800,
+      "mode": 6,
+      "depth": 1,
+      "hit_times": [
+        1067,
+        2134,
+        3200,
+        4267
+      ]
+    },
+    {
+      "step_updates": 800,
+      "mode": 6,
+      "depth": 2,
+      "hit_times": [
+        534,
+        1067,
+        1600,
+        2134,
+        2667,
+        3200,
+        3734,
+        4267,
+        4800
+      ]
+    },
+    {
+      "step_updates": 800,
+      "mode": 6,
+      "depth": 3,
+      "hit_times": [
+        267,
+        534,
+        800,
+        1067,
+        1334,
+        1600,
+        1867,
+        2134,
+        2400,
+        2667,
+        2934,
+        3200,
+        3467,
+        3734,
+        4000,
+        4267,
+        4534,
+        4800
+      ]
+    }
+  ],
+  "tempo_change_ticks": 3150,
+  "limits": [
+    "Narrow instruction interpreter, not full MCU/GPIO/interrupt timing emulation",
+    "Real analog roll and triplet sound require hardware listening",
+    "Gate/drop behavior checked in software; physical voice recovery not measured"
+  ]
+}

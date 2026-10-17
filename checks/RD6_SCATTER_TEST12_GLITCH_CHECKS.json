@@ -1,0 +1,18 @@
+{
+  "status": "passed_TEST12_Slice_Cut_ARM_checks",
+  "candidate_sha256": "bfea2b995c8ce5caea87ab68bae48ae28bbe78f5de4c79b5d7e6bdfc3ddec826",
+  "mapping_cases": 9120,
+  "interpreted_calls": 18897,
+  "max_stack_bytes": 176,
+  "max_instructions": 567,
+  "cases": [
+    "Slice/Cut four depths with all directions, lengths2..16, multiple wraps; snapshot agrees; pattern and transport unchanged",
+    "actual stock dispatcher emits matching MIDI/analog GPIO chords and Cut rests at all depths; off restores current-step playback",
+    "actual four-voice stock MIDI/GPIO order and mapped rests match Slice/Cut in all directions/depths",
+    "Cut-muted hits do not replace captured Roll source"
+  ],
+  "limits": [
+    "Selected instruction paths and intercepted note observer; physical sound not auditioned",
+    "Cut skips triggers; analog decays continue; Slice transforms step events, not recorded audio"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "status": "passed_TEST12_direction_and_queue_regression",
+  "candidate_sha256": "bfea2b995c8ce5caea87ab68bae48ae28bbe78f5de4c79b5d7e6bdfc3ddec826",
+  "interpreted_calls": 58336,
+  "mapping_cases": 20160,
+  "max_instructions": 924,
+  "max_stack_bytes": 136,
+  "cases": [
+    "all four directions composed before retained off/ratchet/roll modes and four depths, pattern lengths2..16, multiple wraps",
+    "mid-play direction changes preserve physical transport; Forward resumes clock position; ping-pong survives bar wrap; length change reanchors",
+    "invalid pattern metadata returns original mask without direction-state writes",
+    "compiled layer direction controls independent of selected effect/TAP; exit/Stop/mode/diagnostics restore Forward",
+    "ratchet regular/subdivision source snapshot matches in all directions; timer never rerolls Random",
+    "all six roll rates in all directions: capture fixed, pattern direction advances, release resumes selected direction",
+    "actual timer stop/mode guard clears direction state and startup default remains Forward"
+  ],
+  "clock_guarantee_scope": "all interpreted writes fenced away from transport/tempo/timer registers; physical timing not measured",
+  "limits": [
+    "Selected Thumb paths only, no full reset-to-audio MCU emulation",
+    "Real direction/effect sound, interrupt concurrency and runtime RAM/flash liveness unverified"
+  ]
+}

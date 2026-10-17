@@ -1,0 +1,13 @@
+*.bin
+*.syx
+*.o
+*.elf
+*.hex
+__pycache__/
+*.py[cod]
+node_modules/
+.venv/
+backups/
+private/
+RD6_RESTORE_*.json
+RD6_WEBMIDI_*.json

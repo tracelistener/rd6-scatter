@@ -1,0 +1,24 @@
+{
+  "status": "passed_TEST12_panel_and_USB_DIN_status_query",
+  "candidate_sha256": "bfea2b995c8ce5caea87ab68bae48ae28bbe78f5de4c79b5d7e6bdfc3ddec826",
+  "receive_counts": {
+    "usb_messages": 24024,
+    "usb_accepted": 811,
+    "usb_exhaustive_pairs": 16384,
+    "usb_channel_matrix": 7616,
+    "din_messages": 24022,
+    "din_accepted": 809,
+    "din_exhaustive_pairs": 16384,
+    "din_channel_matrix": 7616,
+    "din_split_and_running_status_messages": 3,
+    "cross_transport_partial_din_message": 1,
+    "usb_fragmentation_probe": 1,
+    "usb_nonzero_cable_zero_buffer_probes": 15,
+    "usb_nonzero_cable_stale_cc_replays": 15
+  },
+  "read_query": "CC112/value0 returns one52-byte USB packet without config writes; stock channel filter preserved",
+  "limits": [
+    "USB transmit sink intercepted; physical reply not yet checked",
+    "Physical retained control regression pending"
+  ]
+}

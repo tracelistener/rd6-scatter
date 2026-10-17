@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RD-6 WebMIDI Uploader</title>
+<!--
+  Browser implementation of the verified USB update handshake and pacing.
+  Same protocol, same ACK pacing, same abort rules: one frame in flight,
+  exact expected reply, 2 s timeout, no automatic retry, abort on any
+  unsolicited or unexpected reply. Self-contained; no network requests
+  except the optional same-origin "load pinned package" fetch.
+  Includes a simulated RD-6 so the whole flow can be exercised offline.
+-->
+<style>
+:root {
+  --bg: #f6f6f4; --panel: #ffffff; --ink: #1c1c1a; --muted: #66665f; --line: #d9d8d2;
+  --accent: #1f5fbf; --ok: #1d7a3a; --warn: #9a6200; --bad: #b3261e; --code: #f0efea;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #151514; --panel: #1e1e1c; --ink: #ebeae4; --muted: #a3a29a; --line: #393934;
+    --accent: #7aa7ff; --ok: #5cc27a; --warn: #e0a53a; --bad: #ff7a70; --code: #262623;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #151514; --panel: #1e1e1c; --ink: #ebeae4; --muted: #a3a29a; --line: #393934;
+  --accent: #7aa7ff; --ok: #5cc27a; --warn: #e0a53a; --bad: #ff7a70; --code: #262623;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
+h1 { font-size: 22px; margin: 0 0 4px; }
+h2 { font-size: 16px; margin: 0 0 10px; display: flex; gap: 8px; align-items: baseline; }
+h2 .n { color: var(--muted); font-variant-numeric: tabular-nums; }
+p { margin: 6px 0; }
+.sub { color: var(--muted); margin-bottom: 18px; }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; margin: 12px 0; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+button { font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--ink); cursor: pointer; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button.danger { border-color: var(--bad); color: var(--bad); }
+button:disabled { opacity: .45; cursor: not-allowed; }
+input[type=text], select { font: inherit; padding: 5px 8px; border-radius: 6px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--ink); min-width: 0; max-width: 100%; }
+label.inline:has(#portName) { flex-wrap: wrap; max-width: 100%; }
+code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
+code { background: var(--code); padding: 1px 4px; border-radius: 4px; overflow-wrap: anywhere; }
+.status { padding: 8px 10px; border-radius: 6px; background: var(--code); margin: 8px 0; overflow-wrap: anywhere; white-space: pre-wrap; }
+.status.ok { border-left: 4px solid var(--ok); }
+.status.warn { border-left: 4px solid var(--warn); }
+.status.bad { border-left: 4px solid var(--bad); }
+.status.idle { border-left: 4px solid var(--line); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+td { padding: 3px 8px 3px 0; vertical-align: top; overflow-wrap: anywhere; }
+td:first-child { color: var(--muted); white-space: nowrap; width: 1%; }
+.checks li { margin: 2px 0; }
+.checks li.pass::marker { content: "Ã¢Å“â€œ  "; color: var(--ok); }
+.checks li.fail::marker { content: "Ã¢Å“â€”  "; color: var(--bad); }
+progress { width: 100%; height: 14px; }
+#log { height: 260px; overflow: auto; background: var(--code); border-radius: 6px; padding: 8px;
+  white-space: pre; font-size: 12px; }
+.sim { border-style: dashed; }
+.sim-banner { display: none; background: var(--warn); color: #000; padding: 6px 10px; border-radius: 6px; margin-bottom: 8px; font-weight: 600; }
+body.simulating .sim-banner { display: block; }
+label.inline { display: inline-flex; gap: 6px; align-items: center; }
+.warnbox { border-left: 4px solid var(--warn); padding: 6px 10px; background: var(--code); border-radius: 6px; font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="sim-banner">SIMULATOR ACTIVE: nothing is sent to hardware.</div>
+  <h1>RD-6 WebMIDI Uploader</h1>
+  <p class="sub">Local patch preparation, restore-file backup and ACK-paced USB updates. Transfer protocol: one frame in flight, the exact expected reply per frame, a 2&nbsp;s timeout, no automatic retry, and an abort on any unexpected reply.</p>
+
+  <div class="warnbox">This writes experimental firmware. USB-only recovery has not been verified. This tool cannot read a full-flash backup. Stock 1.0.5 SysEx is a rollback candidate, not a guaranteed recovery. Keep USB and power connected, keep this tab in the foreground, and close SynthTribe and other MIDI apps before you start.</div>
+
+  <section>
+    <h2><span class="n">1</span> Save your restore file, then prepare TEST12</h2>
+    <p>This tool cannot read firmware from the RD-6 over USB. Save a copy of a firmware <strong>file you already have</strong>; this is not a full-flash dump and does not include patterns/settings. Keep a copy on your computer before updating.</p>
+    <div class="row"><label>Original firmware file (.syx) <input type="file" id="stockFile" accept=".syx"></label><button id="saveBackup" disabled>Download restore-file backup</button></div>
+    <div id="backupStatus" class="status idle">Choose your own firmware file. Nothing is uploaded to a server.</div>
+    <label class="inline"><input type="checkbox" id="backupSaved"> I have saved and can locate my restore-file backup.</label>
+    <p>To prepare TEST12, supply your own stock RD-6 1.0.5 SysEx file. Only the patch is distributed here. Restoration requires the RD-6 to still accept updates; this is not guaranteed recovery.</p>
+    <div class="row"><label>Restore a saved backup <input type="file" id="restoreFile" accept=".json,.syx"></label></div>
+    <div class="row">
+      <label>Or choose a prepared firmware file <input type="file" id="file" accept=".syx"></label>
+      <button id="loadPinned" title="Apply the patch locally to your stock1.0.5 file" disabled>Prepare TEST12 locally</button>
+    </div>
+    <div id="fileStatus" class="status idle">No file loaded.</div>
+    <ul id="fileChecks" class="checks"></ul>
+    <div id="unpinnedBox" class="row" hidden>
+      <label class="inline"><input type="checkbox" id="allowUnpinned"> Allow this unpinned image. Type the first 8 hex of its SHA-256 to confirm:</label>
+      <input type="text" id="unpinnedConfirm" size="10" class="mono" autocomplete="off">
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="n">2</span> Device</h2>
+    <div class="row">
+      <label class="inline">Port name <input type="text" id="portName" value="RHYTHM DESIGNER RD-6" size="26"></label>
+      <button id="connect">Request MIDI access</button>
+      <label class="inline"><input type="checkbox" id="useSim"> Use simulated RD-6</label>
+    </div>
+    <div id="portStatus" class="status idle">MIDI not requested.</div>
+    <div class="row">
+      <button id="identity" disabled>Identity query (08)</button>
+      <button id="enterUpdate" disabled>Enter update mode (03 30)</button>
+    </div>
+    <div id="devStatus" class="status idle">Device state unknown.</div>
+  </section>
+
+  <section class="sim" id="simPanel" hidden>
+    <h2><span class="n">Ã‚Â·</span> Simulator</h2>
+    <p>This is a software RD-6 that answers the way your device did in the TEST01Ã¢â‚¬â€œTEST03 logs, with optional faults injected. No hardware is involved.</p>
+    <div class="row">
+      <label class="inline">Fault
+        <select id="simFault">
+          <option value="none">none</option>
+          <option value="nack">NACK (01 00 01) at block</option>
+          <option value="silent">no reply at block</option>
+          <option value="dup">duplicate ACK at block</option>
+          <option value="appmode">device stays in application mode</option>
+        </select></label>
+      <label class="inline">block <input type="text" id="simBlock" value="120" size="4"></label>
+      <label class="inline"><input type="checkbox" id="simFast" checked> fast (no 10 s reboot wait)</label>
+    </div>
+    <div id="simStatus" class="status idle">Simulator idle.</div>
+  </section>
+
+  <section>
+    <h2><span class="n">3</span> Transfer</h2>
+    <p>Stop playback before entering update mode (step 2). The transfer starts by sending <code>08 40</code>, which only update mode answers with an ACK. If the application answers instead, nothing more is sent.</p>
+    <div class="row">
+      <label class="inline"><input type="checkbox" id="understand"> I understand this writes experimental firmware with no proven recovery.</label>
+    </div>
+    <div class="row">
+      <button id="preamble" disabled>Preamble only (no firmware)</button>
+      <button id="send" class="primary" disabled>Send firmware</button>
+      <button id="abort" class="danger" disabled>Abort after current frame</button>
+    </div>
+    <progress id="prog" max="383" value="0"></progress>
+    <div id="xferStatus" class="status idle">Idle.</div>
+  </section>
+
+  <section>
+    <h2><span class="n">4</span> Log</h2>
+    <div class="row">
+      <button id="download" disabled>Download JSON evidence</button>
+      <label class="inline"><input type="checkbox" id="showTraffic"> show tx/rx bytes</label>
+    </div>
+    <div id="log" class="mono"></div>
+  </section>
+</main>
+
+<script>
+'use strict';
+// ---------------------------------------------------------------- constants
+const hex = s => Uint8Array.from(s.trim().split(/\s+/).map(b => parseInt(b, 16)));
+const toHex = a => Array.from(a, b => b.toString(16).padStart(2, '0')).join(' ');
+const cat = (...parts) => { const n = parts.reduce((s, p) => s + p.length, 0); const o = new Uint8Array(n); let i = 0; for (const p of parts) { o.set(p, i); i += p.length; } return o; };
+const eq = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+const PREFIX  = hex('f0 00 20 32 00 01 0d 00');
+const ACK     = cat(PREFIX, hex('01 00 00 f7'));
+const MODEL   = cat(PREFIX, hex('05 50 30 45 34 47 00 f7'));
+const PRODUCT = cat(PREFIX, hex('07 52 48 59 54 00 f7'));
+const VERSION_105 = cat(PREFIX, hex('09 00 01 00 05 f7'));
+const Q_VERSION = cat(PREFIX, hex('08 f7'));
+const Q_UPDATE_MODE = cat(PREFIX, hex('08 40 f7'));
+const ENTER_UPDATE = cat(PREFIX, hex('03 30 f7'));
+const EXCHANGE_TIMEOUT_MS = 2000;   // same conservative abort policy as the Python sender
+const REBOOT_WAIT_MS = 10000;       // vendor text: at least ten seconds
+
+// Pinned images. Only these are accepted without the explicit unpinned override.
+const PINNED = {
+  '9bc1c3a74da476c6694724314d275030a7debb4299c561d06cf56f4e55b540ef':
+    { name: 'TEST12_GLITCH (current tested build)', bin: 'bfea2b995c8ce5caea87ab68bae48ae28bbe78f5de4c79b5d7e6bdfc3ddec826', allowed: true },
+  '7bbf8ef8e9efd4378178389bbb8df07ce91112252bb31e4e5262799c65631155':
+    { name: 'TEST03_PANEL (historical)', bin: 'ec1ab10372b34b670060941f7cdea17bcd14eb274e6fc2b3d72ea90652d97a8f', allowed: true },
+  '757563928bb5a861f585f9ac733f39e837520a290b6f01627569b85addee9cdb':
+    { name: 'TEST01 (engine only, hardware-tested)', bin: '7ad451b76a3fc6b4227d96c83cdd13f4ce990dd94559a0dbc34cb829ab77426d', allowed: true },
+  '29fc1fb89a951a864e294764d2fe8bba4ad1ce890f9c308f09944749321571eb':
+    { name: 'Stock RD-6 1.0.5 (rollback candidate)', bin: '41f0f3036da380db1c9696fa77e341e5a2500f90e091a4d804f311f102a3d650', allowed: true },
+  '910ad0db1454be4830c2f31d0b7f53d0558b9801387ddfbb4a4360c1e6c0e569':
+    { name: 'TEST02_PANEL (superseded: stale held-step defect)', bin: 'b4f7cc8ecd4716feb9350ea1af86f76cfe585af64c9c5c5aeaad47a075520ea9', allowed: false },
+};
+const PATCH_RELATIVE = 'TEST12.patch.json';
+const STOCK_SHA = '29fc1fb89a951a864e294764d2fe8bba4ad1ce890f9c308f09944749321571eb';
+const TARGET_SHA = '9bc1c3a74da476c6694724314d275030a7debb4299c561d06cf56f4e55b540ef';
+
+// ---------------------------------------------------------------- logging
+const S = { backup: null, backupDownloaded: false, image: null, midi: null, transport: null, busy: false, abort: false, events: [], started: null, t0: performance.now(), deviceMode: 'unknown' };
+const $ = id => document.getElementById(id);
+function log(event, values = {}) {
+  const row = { event, elapsed_ms: Math.round((performance.now() - S.t0) * 1000) / 1000, ...values };
+  S.events.push(row);
+  if ((event === 'tx' || event === 'rx') && !$('showTraffic').checked) return row;
+  const el = $('log');
+  el.textContent += JSON.stringify(row) + '\n';
+  el.scrollTop = el.scrollHeight;
+  $('download').disabled = false;
+  return row;
+}
+function status(id, cls, text) { const el = $(id); el.className = 'status ' + cls; el.textContent = text; }
+
+// ---------------------------------------------------------------- file parsing (mirrors decrypt_rd6.py)
+function splitSysex(data) {
+  const out = []; let pos = 0;
+  while (pos < data.length) {
+    if (data[pos] !== 0xf0) throw new Error(`missing SysEx start at offset ${pos}`);
+    const end = data.indexOf(0xf7, pos);
+    if (end < 0) throw new Error('unterminated SysEx');
+    const m = data.subarray(pos, end + 1);
+    for (let i = 1; i < m.length - 1; i++) if (m[i] >= 0x80) throw new Error('SysEx data byte has its high bit set');
+    out.push(m); pos = end + 1;
+  }
+  return out;
+}
+function unpack7(d) {
+  const out = [];
+  for (let p = 0; p < d.length; p += 8) {
+    const g = d.subarray(p, p + 8);
+    if (g.length < 2) throw new Error('incomplete 7-bit group');
+    for (let i = 1; i < g.length; i++) out.push(g[i] | (((g[0] >> (7 - i)) & 1) << 7));
+  }
+  return Uint8Array.from(out);
+}
+const le7 = (m, o) => m[o] | (m[o + 1] << 7) | (m[o + 2] << 14) | (m[o + 3] << 21);
+async function sha256(buf) { const h = await crypto.subtle.digest('SHA-256', buf); return toHex(new Uint8Array(h)).replace(/ /g, ''); }
+
+async function analyse(bytes) {
+  const checks = [];
+  const ok = (pass, text) => { checks.push({ pass, text }); return pass; };
+  const hash = await sha256(bytes);
+  const pin = PINNED[hash];
+  let frames = [];
+  try { frames = splitSysex(bytes); ok(true, `${frames.length} SysEx frames, no high-bit data bytes`); }
+  catch (e) { ok(false, 'SysEx framing: ' + e.message); return { hash, pin, checks, frames, valid: false }; }
+  ok(frames.length === 383, `383 frames expected (5 setup + header + 377 data): ${frames.length}`);
+  ok(frames.every(f => eq(f.subarray(0, 8), PREFIX)), 'every frame has device-ID-0 RD-6 prefix');
+  const cmds = frames.slice(0, 6).map(f => f[8]);
+  ok(eq(cmds, [4, 6, 8, 8, 3, 10]), `setup/header commands 04 06 08 08 03 0A: ${cmds.map(c => c.toString(16).padStart(2, '0')).join(' ')}`);
+  const setup = ['04 f7', '06 f7', '08 40 f7', '08 00 f7', '03 30 f7'].map(s => cat(PREFIX, hex(s)));
+  ok(setup.every((s, i) => frames[i] && eq(frames[i], s)), 'five setup frames match the observed preamble byte-for-byte');
+  const data = frames.slice(6);
+  let counterOk = data.length === 377, raw = [];
+  for (let i = 0; i < data.length && counterOk; i++) {
+    const m = data[i];
+    if (m[8] !== 0x0b || m[9] !== 0 || le7(m, 10) !== i) { counterOk = false; ok(false, `data frame ${i}: command/counter mismatch`); break; }
+    try { raw.push(unpack7(m.subarray(14, m.length - 1))); } catch (e) { counterOk = false; ok(false, `data frame ${i}: ${e.message}`); }
+  }
+  if (counterOk) ok(true, '377 data frames, command 0B, counters 0..376 in order');
+  let decoded = null, binHash = null, stack = 0, reset = 0, version = null;
+  if (counterOk && frames[5]) {
+    const clearRaw = cat(...raw);
+    const declared = le7(frames[5], 10);
+    ok(clearRaw.length === declared, `unpacked size ${clearRaw.length} equals header size ${declared}`);
+    const h = frames[5];
+    const ascii = Array.from(h.subarray(18, 29), c => (c >= 32 && c < 127) ? String.fromCharCode(c) : 'Ã‚Â·').join('');
+    ok(ascii === 'P0E4GÃ‚Â·RD-6Ã‚Â·', `header model strings "P0E4G" and "RD-6": ${ascii}`);
+    version = Array.from(h.subarray(29, 32)).join('.');
+    // XOR mask: longest run of identical 128-byte blocks (decrypt_rd6.longest_repeated_block_run)
+    const n = Math.floor(clearRaw.length / 128); let best = [0, 0], start = 0;
+    const same = (a, b) => { for (let k = 0; k < 128; k++) if (clearRaw[a * 128 + k] !== clearRaw[b * 128 + k]) return false; return true; };
+    for (let i = 1; i <= n; i++) { if (i < n && same(i, start)) continue; if (i - start > best[1]) best = [start, i - start]; start = i; }
+    if (ok(best[1] >= 100, `XOR mask recovered from ${best[1]} repeated blocks`)) {
+      const mask = clearRaw.subarray(best[0] * 128, best[0] * 128 + 128);
+      decoded = clearRaw.map((b, i) => b ^ mask[i % 128]);
+      const dv = new DataView(decoded.buffer);
+      stack = dv.getUint32(0, true); reset = dv.getUint32(4, true);
+      ok(stack >= 0x20000000 && stack < 0x20004000 && reset >= 0x08000001 && reset < 0x08020000 && (reset & 1),
+        `Cortex-M vectors plausible for GD32F350 (16 KB SRAM, 128 KB flash): SP 0x${stack.toString(16)}, reset 0x${reset.toString(16)}`);
+      binHash = await sha256(decoded);
+      if (pin) ok(binHash === pin.bin, `decoded image SHA-256 matches pinned .bin (${pin.bin.slice(0, 12)}Ã¢â‚¬Â¦)`);
+    }
+  }
+  const valid = checks.every(c => c.pass);
+  return { hash, pin, checks, frames, valid, binHash, stack, reset, version };
+}
+
+async function loadImage(bytes, label) {
+  const a = await analyse(bytes);
+  S.image = a;
+  const list = $('fileChecks'); list.innerHTML = '';
+  for (const c of a.checks) { const li = document.createElement('li'); li.className = c.pass ? 'pass' : 'fail'; li.textContent = c.text; list.appendChild(li); }
+  $('unpinnedBox').hidden = !(a.valid && !a.pin);
+  $('allowUnpinned').checked = false; $('unpinnedConfirm').value = '';
+  const summary = `${label}\nSHA-256 ${a.hash}`;
+  if (!a.valid) status('fileStatus', 'bad', `${summary}\nREFUSED: structural checks failed.`);
+  else if (a.pin && a.pin.allowed) status('fileStatus', 'ok', `${summary}\nPinned: ${a.pin.name}. Header version ${a.version}.`);
+  else if (a.pin) status('fileStatus', 'bad', `${summary}\nREFUSED: ${a.pin.name}.`);
+  else status('fileStatus', 'warn', `${summary}\nNot a pinned image. Structure is valid (header version ${a.version}). Explicit override required.`);
+  log('image_loaded', { label, image_sha256: a.hash, pinned: a.pin ? a.pin.name : null, valid: a.valid, decoded_sha256: a.binHash });
+  refresh();
+}
+function imageSendable() {
+  const a = S.image; if (!a || !a.valid) return false;
+  if (a.pin) return a.pin.allowed;
+  return $('allowUnpinned').checked && $('unpinnedConfirm').value.trim().toLowerCase() === a.hash.slice(0, 8);
+}
+
+// ---------------------------------------------------------------- SysEx stream parser (mirrors rd6_usb_midi.SysexParser)
+class SysexParser {
+  constructor() { this.pending = null; }
+  feed(data) {
+    const frames = [];
+    for (const b of data) {
+      if (b >= 0xf8) continue;                       // realtime may interleave
+      if (b === 0xf0) this.pending = [b];
+      else if (this.pending) {
+        if (b === 0xf7) { this.pending.push(b); frames.push(Uint8Array.from(this.pending)); this.pending = null; }
+        else if (b < 0x80) { this.pending.push(b); if (this.pending.length > 65536) throw new Error('oversized SysEx'); }
+        else this.pending = null;                    // status byte aborts an incomplete SysEx
+      }
+    }
+    return frames;
+  }
+}
+
+// ---------------------------------------------------------------- transports
+// A Session is one opened input/output pair with a queue of received frames.
+class Session {
+  constructor(transport) { this.t = transport; this.queue = []; this.waiters = []; this.parser = new SysexParser(); this.closed = false; }
+  _rx(bytes) {
+    if (this.closed) return;
+    for (const f of this.parser.feed(bytes)) {
+      log('rx', { hex: toHex(f) });
+      this.queue.push(f);
+      const w = this.waiters.splice(0); w.forEach(fn => fn());
+    }
+  }
+  send(frame) {
+    if (!eq(frame.subarray(0, 8), PREFIX) || frame[frame.length - 1] !== 0xf7) throw new Error('not device-ID-0 RD-6 SysEx');
+    this.t.send(frame); log('tx', { hex: toHex(frame) });
+  }
+  take() { return this.queue.splice(0); }
+  waitFrame(ms) {
+    if (this.queue.length) return Promise.resolve(true);
+    return new Promise(res => {
+      const timer = setTimeout(() => { this.waiters = this.waiters.filter(w => w !== fn); res(false); }, ms);
+      const fn = () => { clearTimeout(timer); res(true); };
+      this.waiters.push(fn);
+    });
+  }
+  async collect(ms) { await sleep(ms); return this.take(); }
+  close() { this.closed = true; this.t.close(); log('closed'); }
+}
+
+const WebMidiTransport = {
+  async open(session) {
+    const name = $('portName').value;
+    const ins = [...S.midi.inputs.values()].filter(p => p.name === name && p.state === 'connected');
+    const outs = [...S.midi.outputs.values()].filter(p => p.name === name && p.state === 'connected');
+    if (ins.length !== 1 || outs.length !== 1) throw new Error(`need exactly one connected "${name}" input/output pair; found ${ins.length} in / ${outs.length} out`);
+    const [input, output] = [ins[0], outs[0]];
+    await input.open(); await output.open();
+    input.onmidimessage = e => session._rx(e.data);
+    log('open', { ports: { out: [output.id, output.name], in: [input.id, input.name] } });
+    return { send: f => output.send(f), close: () => { input.onmidimessage = null; } };
+  },
+  present() {
+    const name = $('portName').value;
+    const n = it => [...it.values()].filter(p => p.name === name && p.state === 'connected').length;
+    return n(S.midi.inputs) === 1 && n(S.midi.outputs) === 1;
+  },
+};
+
+// Simulated RD-6, modelled on the TEST01Ã¢â‚¬â€œTEST03 transfer logs.
+const Sim = {
+  mode: 'app', present_: true, session: null, received: [], blocks: 0, dupPending: false,
+  reset() { this.mode = 'app'; this.present_ = true; this.received = []; this.blocks = 0; this.update(); },
+  update(extra = '') { status('simStatus', 'idle', `Simulated device: ${this.present_ ? this.mode + ' mode' : 'disconnected (USB re-enumerating)'}; firmware frames received ${this.received.length}. ${extra}`); },
+  reply(f, delay) { const s = this.session; setTimeout(() => { if (this.present_ && s === this.session) s._rx(f); }, delay); },
+  disconnect(ms, then) { this.present_ = false; this.session = null; this.update(); setTimeout(() => { this.present_ = true; then(); this.update(); }, ms); },
+  async open(session) {
+    if (!this.present_) throw new Error('simulated RD-6 not present (re-enumerating)');
+    this.session = session;
+    log('open', { ports: { out: ['sim', 'RHYTHM DESIGNER RD-6 (simulated)'], in: ['sim', 'RHYTHM DESIGNER RD-6 (simulated)'] } });
+    return { send: f => this.handle(f.slice()), close: () => { if (this.session === session) this.session = null; } };
+  },
+  present() { return this.present_; },
+  handle(f) {
+    const body = toHex(f.subarray(8, f.length - 1));
+    const fault = $('simFault').value, at = parseInt($('simBlock').value, 10);
+    const quick = () => 1 + Math.random();
+    if (this.mode === 'app' || fault === 'appmode') {
+      if (body === '08' || body === '08 40') return this.reply(VERSION_105, 8 + Math.random() * 12);
+      if (body === '03 30' && fault !== 'appmode') {
+        this.reply(ACK, quick()); this.reply(ACK, 3);
+        setTimeout(() => this.disconnect(400, () => { this.mode = 'update'; this.received = []; }), 1050);
+      }
+      return;
+    }
+    if (this.mode !== 'update') return;
+    if (body === '08 40' || body === '08 00' || body === '03 30') return this.reply(ACK, quick());
+    if (body === '04') return this.reply(MODEL, quick());
+    if (body === '06') return this.reply(PRODUCT, quick());
+    if (f[8] === 0x0a || f[8] === 0x0b) {
+      this.received.push(f);
+      const block = f[8] === 0x0b ? le7(f, 10) : null;
+      const lat = 4 + Math.random() * 40;
+      if (block === at && fault === 'silent') { this.update(`(fault: silent at block ${at})`); return; }
+      if (block === at && fault === 'nack') { this.reply(cat(PREFIX, hex('01 00 01 f7')), lat); return; }
+      this.reply(ACK, lat);
+      if (block === at && fault === 'dup') this.reply(ACK, lat + 3);
+      if (block === 376) {
+        const match = S.image && this.received.length === 378 && this.received.every((r, i) => eq(r, S.image.frames[5 + i]));
+        setTimeout(() => this.disconnect(800, () => { this.mode = 'app'; }), lat + 20);
+        this.update(match ? 'Stream matched the loaded file byte-for-byte.' : 'Stream did NOT match the loaded file.');
+        log('sim_stream_check', { byte_exact: match });
+        return;
+      }
+      this.update();
+    }
+  },
+};
+
+function transport() { return $('useSim').checked ? Sim : WebMidiTransport; }
+async function openSession() { const s = new Session(null); s.t = await transport().open(s); return s; }
+
+// ---------------------------------------------------------------- protocol steps
+async function exchange(s, frame, expected, timeout = EXCHANGE_TIMEOUT_MS) {
+  // Advance on exactly one expected reply; never treat host TX completion as ACK.
+  if (s.take().length) throw new Error('unsolicited pending reply before send; refusing ambiguous transaction');
+  const t = performance.now();
+  s.send(frame);
+  if (!(await s.waitFrame(timeout))) throw new Error('device reply timeout; no automatic retry; do not blindly restart mid-image');
+  await sleep(0);
+  const replies = s.take();
+  if (replies.length !== 1 || !eq(replies[0], expected))
+    throw new Error('unexpected, failed or duplicate reply: ' + JSON.stringify(replies.map(toHex)));
+  return Math.round((performance.now() - t) * 1000) / 1000;
+}
+
+async function guarded(fn) {
+  if (S.busy) return; S.busy = true; S.abort = false; refresh();
+  let s = null;
+  try { await fn(x => (s = x)); }
+  catch (e) { log('aborted', { reason: String(e.message || e), automatic_retry: false }); throw e; }
+  finally { if (s && !s.closed) s.close(); S.busy = false; refresh(); }
+}
+
+async function doIdentity() {
+  await guarded(async keep => {
+    const s = keep(await openSession());
+    const pre = await s.collect(200);
+    if (pre.length) log('pre_query_traffic', { count: pre.length });
+    s.send(Q_VERSION);
+    const replies = await s.collect(1000);
+    const isStock = replies.some(r => eq(r, VERSION_105));
+    const isUpdateAck = replies.some(r => eq(r, ACK));
+    if (isStock) { S.deviceMode = 'application'; log('stock_identity_confirmed'); status('devStatus', 'ok', 'Application mode, version 1.0.5. Test images keep 1.0.5, so this does not tell you which image is installed.'); }
+    else if (isUpdateAck) { S.deviceMode = 'update'; status('devStatus', 'warn', 'Device answered 08 with an ACK. It looks like it is already in update mode.'); }
+    else { S.deviceMode = 'unknown'; status('devStatus', 'bad', 'No 1.0.5 version reply: ' + (replies.map(toHex).join(' | ') || 'no reply')); }
+  }).catch(e => status('devStatus', 'bad', e.message));
+}
+
+async function doEnterUpdate() {
+  if (!confirm('Send update-mode entry (03 30)? The RD-6 will disconnect and come back in update mode. No firmware is written by this step.')) return;
+  await guarded(async keep => {
+    let s = keep(await openSession());
+    await s.collect(200);
+    s.send(Q_VERSION);
+    if (!(await s.collect(1000)).some(r => eq(r, VERSION_105))) throw new Error('expected stock 1.0.5 identity not received; stopping (already in update mode?)');
+    log('stock_identity_confirmed');
+    s.send(ENTER_UPDATE);
+    status('devStatus', 'warn', 'Entry sent; waiting for the device to re-enumerate (up to 15 s)Ã¢â‚¬Â¦');
+    // Watch presence from the moment of sending: on hardware the port vanished ~1.05 s
+    // and returned ~1.45 s after entry, so a fixed 1 s collect first could miss the gap.
+    const t = performance.now(); let gone = false, back = false, acks = 0;
+    while (performance.now() - t < 15000) {
+      if (!s.closed) acks += s.take().filter(r => eq(r, ACK)).length;
+      const p = transport().present();
+      if (!p && !gone) { gone = true; log('port_absent', {}); if (!s.closed) s.close(); }
+      if (p && gone) { back = true; log('port_present_again', {}); break; }
+      await sleep(20);
+    }
+    log('entry_acks', { count: acks, note: 'two observed on hardware' });
+    if (!s.closed) s.close();
+    if (!back) { status('devStatus', gone ? 'bad' : 'warn', gone ? 'Port did not come back within 15 s.' : 'No disconnect seen. Check the device before transferring; the 08 40 guard will refuse if it is not in update mode.'); return; }
+    await sleep(500);   // settle so stale entry ACKs cannot be taken as data ACKs
+    S.deviceMode = 'update';
+    status('devStatus', 'ok', 'Re-enumerated after entry. Presumed update mode; the transfer re-checks with 08 40.');
+  }).catch(e => status('devStatus', 'bad', e.message));
+}
+
+async function doTransfer(preambleOnly) {
+  if (!imageSendable() || !S.backup || !S.backupDownloaded || !$('backupSaved').checked || !$('understand').checked) return;
+  if (!preambleOnly && !confirm(`Write ${S.image.pin ? S.image.pin.name : 'UNPINNED image ' + S.image.hash.slice(0, 16)} to the RD-6?\n\nNo automatic retry. Do not unplug until the reboot check finishes.`)) return;
+  S.events = S.events.filter(e => e.event === 'image_loaded').slice(-1);
+  S.started = new Date().toISOString(); S.t0 = performance.now(); $('log').textContent = '';
+  S.mode = preambleOnly ? 'preamble_only' : 'transfer';
+  const frames = S.image.frames;
+  const prog = $('prog'); prog.value = 0;
+  let wakeLock = null;
+  try { wakeLock = await navigator.wakeLock?.request('screen'); } catch (_) {}
+  await guarded(async keep => {
+    let s = keep(await openSession());
+    if ((await s.collect(250)).length) throw new Error('unexpected traffic on fresh input');
+    // Stock application answers VERSION; observed update session answers ACK.
+    await exchange(s, Q_UPDATE_MODE, ACK);
+    log('observed_update_mode_response_confirmed');
+    status('xferStatus', 'warn', 'Update mode confirmed. Sending preambleÃ¢â‚¬Â¦');
+    const expected = [MODEL, PRODUCT, ACK, ACK, ACK];
+    for (let i = 0; i < 5; i++) { log('preamble_reply', { frame_index: i, latency_ms: await exchange(s, frames[i], expected[i]) }); prog.value = i + 1; }
+    if ((await s.collect(500)).length) throw new Error('extra setup reply; refusing to use it as firmware ACK');
+    if (preambleOnly) { log('preamble_complete', { firmware_headers_sent: 0, firmware_data_sent: 0 }); status('xferStatus', 'ok', 'Preamble complete. No firmware header or data sent. The device is still in update mode.'); return; }
+    const lat = [];
+    for (let i = 5; i < frames.length; i++) {
+      if (S.abort) throw new Error(`user abort before frame ${i}; device holds a partial image (${i - 5} of 378 firmware frames acknowledged)`);
+      const l = await exchange(s, frames[i], ACK); lat.push(l);
+      log('firmware_ack', { frame_index: i, block: i >= 6 ? i - 6 : null, latency_ms: l });
+      prog.value = i + 1;
+      if (i % 8 === 0 || i === frames.length - 1) status('xferStatus', 'warn', `WritingÃ¢â‚¬Â¦ ${i - 4} / 378 firmware frames acknowledged. Do not unplug.`);
+    }
+    // ACKs carry no sequence number: a late duplicate or trailing NACK would otherwise go unseen.
+    const trailing = await s.collect(500);
+    if (trailing.length) throw new Error('extra reply after the final ACK; an earlier ACK may have been a late duplicate. Do NOT assume the image was written: ' + JSON.stringify(trailing.map(toHex)));
+    log('all_firmware_frames_acknowledged', { count: lat.length, min_ms: Math.min(...lat), max_ms: Math.max(...lat), note: 'ACKs prove transfer acceptance, not successful execution.' });
+    s.close();
+    const wait = ($('useSim').checked && $('simFast').checked) ? 1500 : REBOOT_WAIT_MS;
+    for (let left = wait; left > 0; left -= 1000) { status('xferStatus', 'warn', `All 378 firmware frames acknowledged. Waiting for rebootÃ¢â‚¬Â¦ ${Math.ceil(left / 1000)} s`); await sleep(Math.min(1000, left)); }
+    s = keep(await openSession());
+    await s.collect(250);
+    let reply;
+    if (S.image.pin) { reply = toHex(VERSION_105); log('application_version_reply_after_transfer', { latency_ms: await exchange(s, Q_VERSION, VERSION_105), note: 'Version remains 1.0.5; this alone does not identify the image or prove Scatter behavior.' }); }
+    else {
+      s.send(Q_VERSION); const r = await s.collect(1000);
+      reply = r.map(toHex).join(' | ');
+      if (!r.length || r[0][8] !== 0x09) throw new Error('no application version reply after reboot: ' + (reply || 'none'));
+      log('application_version_reply_after_transfer', { reply });
+    }
+    S.deviceMode = 'application';
+    status('xferStatus', 'ok', `Done. All 378 firmware frames were ACKed and the application answered after reboot (${reply}). Now run the physical checks in docs/STATUS.md and download the evidence.`);
+    status('devStatus', 'ok', 'Application mode (post-transfer reply).');
+  }).catch(e => status('xferStatus', 'bad', 'ABORTED: ' + e.message + '\nNo automatic retry. Download the log before doing anything else.'));
+  try { await wakeLock?.release(); } catch (_) {}
+}
+
+// ---------------------------------------------------------------- UI wiring
+function refresh() {
+  const haveDev = $('useSim').checked || !!S.midi;
+  const saved = !!S.backup && S.backupDownloaded && $('backupSaved').checked;
+  $('saveBackup').disabled = S.busy || !S.backup;
+  $('loadPinned').disabled = S.busy || !saved || S.backup.hash !== STOCK_SHA;
+  for (const id of ['file','stockFile','restoreFile','backupSaved']) $(id).disabled = S.busy;
+  $('identity').disabled = S.busy || !haveDev;
+  $('enterUpdate').disabled = S.busy || !haveDev;
+  const ready = !S.busy && saved && haveDev && imageSendable() && $('understand').checked;
+  $('preamble').disabled = !ready; $('send').disabled = !ready;
+  $('abort').disabled = !S.busy;
+  $('simPanel').hidden = !$('useSim').checked;
+  document.body.classList.toggle('simulating', $('useSim').checked);
+}
+
+$('file').addEventListener('change', async e => { const f = e.target.files[0]; if (f) await loadImage(new Uint8Array(await f.arrayBuffer()), f.name); });
+function downloadBytes(bytes, name, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([bytes], {type})); a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+async function setBackup(bytes, label, restored=false) {
+  S.backup = null; S.backupDownloaded = false; $('backupSaved').checked = false; refresh();
+  const a = await analyse(bytes);
+  if (!a.valid || (a.pin && !a.pin.allowed)) throw new Error('Restore file failed firmware validation.');
+  S.backup = {bytes:bytes.slice(), hash:a.hash, label};
+  S.backupDownloaded = restored;
+  status('backupStatus','ok',`${label}\nSHA-256 ${a.hash}\n${restored ? 'Backup verified. Confirm it is saved before restoring.' : 'Ready to save a file backup; no device memory was read.'}`);
+  refresh();
+}
+$('stockFile').addEventListener('change',async e=>{
+  try { const f=e.target.files[0]; if(f) await setBackup(new Uint8Array(await f.arrayBuffer()),f.name); }
+  catch(e){status('backupStatus','bad',e.message);}
+});
+$('saveBackup').addEventListener('click',()=>{
+  if(!S.backup || S.busy) return;
+  const b=S.backup;
+  const doc={format:'rd6-firmware-file-backup-v1',kind:'user-supplied-file-not-device-dump',name:b.label,sha256:b.hash,created:new Date().toISOString(),syx_base64:btoa(Array.from(b.bytes,x=>String.fromCharCode(x)).join(''))};
+  downloadBytes(JSON.stringify(doc,null,2)+'\n',`RD6_RESTORE_${b.hash.slice(0,12)}.json`,'application/json');
+  S.backupDownloaded=true;status('backupStatus','ok','Restore-file download requested. Locate and keep it; then tick the saved-backup confirmation. This is not a device dump.');refresh();
+});
+async function applyPatch(bytes,p) {
+  if(p.format!=='rd6-syx-replacements-v1' || p.source_sha256!==STOCK_SHA || p.target_sha256!==TARGET_SHA || bytes.length!==p.size || await sha256(bytes)!==STOCK_SHA) throw new Error('TEST12 requires the exact stock1.0.5 file (SHA-256 mismatch).');
+  const out=bytes.slice();let end=0;
+  for(const run of p.runs){
+    if(!Array.isArray(run)||run.length!==2||!Number.isInteger(run[0])||run[0]<end) throw new Error('Invalid or overlapping patch range.');
+    const data=Uint8Array.from(atob(run[1]),c=>c.charCodeAt(0));end=run[0]+data.length;
+    if(!data.length||end>out.length) throw new Error('Patch range outside file.');out.set(data,run[0]);
+  }
+  if(await sha256(out)!==TARGET_SHA) throw new Error('Patched TEST12 hash mismatch; no firmware loaded.');
+  return out;
+}
+$('loadPinned').addEventListener('click',async()=>{
+  try {
+    const r=await fetch(PATCH_RELATIVE);if(!r.ok)throw new Error('Cannot load patch: '+r.status);
+    const bytes=await applyPatch(S.backup.bytes,await r.json());
+    await loadImage(bytes,'TEST12_GLITCH prepared locally');
+    downloadBytes(bytes,'RD6_SCATTER_TEST12_GLITCH_1.0.5.syx','application/octet-stream');
+  }catch(e){S.image=null;status('fileStatus','bad',e.message);refresh();}
+});
+$('restoreFile').addEventListener('change',async e=>{
+  try {
+    const f=e.target.files[0];if(!f)return;S.backup=null;S.backupDownloaded=false;$('backupSaved').checked=false;refresh();let bytes=new Uint8Array(await f.arrayBuffer());
+    if(f.name.toLowerCase().endsWith('.json')){
+      const doc=JSON.parse(new TextDecoder().decode(bytes));
+      if(doc.format!=='rd6-firmware-file-backup-v1'||doc.kind!=='user-supplied-file-not-device-dump')throw new Error('Not an RD-6 restore-file backup.');
+      bytes=Uint8Array.from(atob(doc.syx_base64),c=>c.charCodeAt(0));
+      if(await sha256(bytes)!==doc.sha256)throw new Error('Backup checksum mismatch; restore refused.');
+    }
+    await setBackup(bytes,f.name,true);await loadImage(bytes,'Restore: '+f.name);
+  }catch(e){S.image=null;status('backupStatus','bad',e.message);refresh();}
+});
+['allowUnpinned', 'unpinnedConfirm', 'understand', 'backupSaved'].forEach(id => $(id).addEventListener('input', refresh));
+$('useSim').addEventListener('change', () => { if ($('useSim').checked) Sim.reset(); status('portStatus', $('useSim').checked ? 'warn' : 'idle', $('useSim').checked ? 'Using the SIMULATED RD-6. No hardware is touched.' : (S.midi ? 'Web MIDI ready.' : 'MIDI not requested.')); refresh(); });
+$('connect').addEventListener('click', async () => {
+  if (!navigator.requestMIDIAccess) { status('portStatus', 'bad', 'This browser has no Web MIDI. Use Chrome or Edge (desktop).'); return; }
+  try {
+    S.midi = await navigator.requestMIDIAccess({ sysex: true });
+    const show = () => {
+      const name = $('portName').value;
+      const list = it => [...it.values()].map(p => `${p.name}${p.state === 'connected' ? '' : ' (' + p.state + ')'}`).join(', ') || 'none';
+      status('portStatus', WebMidiTransport.present() ? 'ok' : 'warn',
+        `Inputs: ${list(S.midi.inputs)}\nOutputs: ${list(S.midi.outputs)}\n` + (WebMidiTransport.present() ? `Found one "${name}" pair.` : `Exactly one "${name}" input/output pair is required.`));
+    };
+    S.midi.onstatechange = show; show();
+  } catch (e) { status('portStatus', 'bad', 'MIDI access denied (SysEx permission is required): ' + e.message); }
+  refresh();
+});
+$('identity').addEventListener('click', doIdentity);
+$('enterUpdate').addEventListener('click', doEnterUpdate);
+$('preamble').addEventListener('click', () => doTransfer(true));
+$('send').addEventListener('click', () => doTransfer(false));
+$('abort').addEventListener('click', () => { S.abort = true; log('abort_requested'); });
+$('download').addEventListener('click', () => {
+  const doc = { started: S.started || new Date().toISOString(), tool: 'rd6_webmidi_uploader.html', simulated: $('useSim').checked,
+    image_sha256: S.image ? S.image.hash : null, mode: S.mode || null, user_agent: navigator.userAgent, events: S.events };
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(doc, null, 2) + '\n'], { type: 'application/json' }));
+  a.download = `RD6_WEBMIDI_${($('useSim').checked ? 'SIM_' : '')}${(S.mode || 'session').toUpperCase()}_${new Date().toISOString().replace(/[:.]/g, '').slice(0, 15)}.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+});
+window.addEventListener('beforeunload', e => { if (S.busy) { e.preventDefault(); e.returnValue = ''; } });
+if (!window.isSecureContext) status('portStatus', 'bad', 'Not a secure context: Web MIDI and SHA-256 need https:// or http://localhost. Run "python -m http.server" in outputs/ and open http://localhost:8000/rd6_webmidi_uploader.html');
+refresh();
+</script>
+</body>
+</html>
