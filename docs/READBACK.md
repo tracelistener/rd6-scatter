@@ -17,6 +17,24 @@ The diagnostic does not solve first-install backup: custom code must be
 installed before it can read anything. Another independently verified access
 method would be needed for a true backup before the first flash.
 
+## Application dispatcher cross-check — 2026-10-17
+
+The normal SysEx application dispatcher was checked offline in stock1.0.4,
+1.0.5 and1.0.6. All128 legal command selections were executed on both input
+paths for each version (768 family selections). The settings reply reads
+fixed RAM fields. The pattern-read handler was checked with all128 bank
+values and all128 pattern values in each version (49,152 combinations): it
+accepts only2 banks and16 patterns and returns22 pattern-record bytes.
+Neither read path accepts a flash address or a firmware length.
+
+The factory/diagnostic family also contains mutating operations, so unknown
+commands were not sent to hardware. The captured bootloader dispatcher was
+rechecked offline and still exposes no normal firmware-read command.
+These checks do not prove absence of every alternate handler or exploitable
+parser flaw, and cannot establish support across arbitrary firmware versions.
+There remains no verified stock-first firmware readback feature to add to
+the uploader. A downloaded vendor restore package is not a device backup.
+
 ## TEST12 restored
 
 After the diagnostic, the known working TEST12 file was restored. The
