@@ -58,8 +58,8 @@ table { border-collapse: collapse; width: 100%; font-size: 13px; }
 td { padding: 3px 8px 3px 0; vertical-align: top; overflow-wrap: anywhere; }
 td:first-child { color: var(--muted); white-space: nowrap; width: 1%; }
 .checks li { margin: 2px 0; }
-.checks li.pass::marker { content: "Ã¢Å“â€œ  "; color: var(--ok); }
-.checks li.fail::marker { content: "Ã¢Å“â€”  "; color: var(--bad); }
+.checks li.pass::marker { content: "✓  "; color: var(--ok); }
+.checks li.fail::marker { content: "✗  "; color: var(--bad); }
 progress { width: 100%; height: 14px; }
 #log { height: 260px; overflow: auto; background: var(--code); border-radius: 6px; padding: 8px;
   white-space: pre; font-size: 12px; }
@@ -115,8 +115,8 @@ label.inline { display: inline-flex; gap: 6px; align-items: center; }
   </section>
 
   <section class="sim" id="simPanel" hidden>
-    <h2><span class="n">Ã‚Â·</span> Simulator</h2>
-    <p>This is a software RD-6 that answers the way your device did in the TEST01Ã¢â‚¬â€œTEST03 logs, with optional faults injected. No hardware is involved.</p>
+    <h2><span class="n">·</span> Simulator</h2>
+    <p>This is a software RD-6 that answers the way your device did in the TEST01–TEST03 logs, with optional faults injected. No hardware is involved.</p>
     <div class="row">
       <label class="inline">Fault
         <select id="simFault">
@@ -262,8 +262,8 @@ async function analyse(bytes) {
     const declared = le7(frames[5], 10);
     ok(clearRaw.length === declared, `unpacked size ${clearRaw.length} equals header size ${declared}`);
     const h = frames[5];
-    const ascii = Array.from(h.subarray(18, 29), c => (c >= 32 && c < 127) ? String.fromCharCode(c) : 'Ã‚Â·').join('');
-    ok(ascii === 'P0E4GÃ‚Â·RD-6Ã‚Â·', `header model strings "P0E4G" and "RD-6": ${ascii}`);
+    const ascii = Array.from(h.subarray(18, 29), c => (c >= 32 && c < 127) ? String.fromCharCode(c) : '·').join('');
+    ok(ascii === 'P0E4G·RD-6·', `header model strings "P0E4G" and "RD-6": ${ascii}`);
     version = Array.from(h.subarray(29, 32)).join('.');
     // XOR mask: longest run of identical 128-byte blocks (decrypt_rd6.longest_repeated_block_run)
     const n = Math.floor(clearRaw.length / 128); let best = [0, 0], start = 0;
@@ -372,7 +372,7 @@ const WebMidiTransport = {
   },
 };
 
-// Simulated RD-6, modelled on the TEST01Ã¢â‚¬â€œTEST03 transfer logs.
+// Simulated RD-6, modelled on the TEST01–TEST03 transfer logs.
 const Sim = {
   mode: 'app', present_: true, session: null, received: [], blocks: 0, dupPending: false,
   reset() { this.mode = 'app'; this.present_ = true; this.received = []; this.blocks = 0; this.update(); },
