@@ -1,0 +1,20 @@
+{
+  "status": "passed_scatter_v1_2",
+  "syx_sha256": "8bbc359ebdf78357f7233556bf2843d53b34e8a1a52a4f1c0b8b83a9db9d41dc",
+  "image_sha256": "1f5c1dad6efb53e6bba33bcbb32f9f490080b9d564ba99d0fc789efe7865bf95",
+  "bytes_changed_from_v1": 104,
+  "header_checksum_ok": true,
+  "snapshot_address_checked": "0x20002070",
+  "mask_run_blocks": 100,
+  "step_light_cases": 4794,
+  "mode_cases": 84,
+  "build": "SCATTER_V1_2",
+  "date": "2026-10-17",
+  "patch": "outputs/scatter-v1.2.patch.json",
+  "changes": [
+    "Step lights follow the played step: BL at 0x080064EA (stock ldrb.w r2, [r8, #8]) to a 60-byte routine at 0x0800CD90 that returns the step from the direction snapshot at 0x20002070 when it is valid for the current clock step and pattern length, else the clock step (source/step_lights.py).",
+    "Pattern Write keeps Scatter: the panel tick no longer cancels the layer in mode 3 while playing, and handles no Scatter buttons there; the direction check keeps the direction in modes 2 and 3 (source/mode_keep.py). Every other mode, playing, busy and START/STOP case decides exactly as v1."
+  ],
+  "scope": "Offline: byte diff against Scatter v1, header checksum, XOR-mask recoverability, the snapshot address cross-checked against the .ll source and v1's compiled reader, the step-light routine run by source/rd6_thumb_machine.py from its real call site over every state combination, and the panel and direction decisions run in both v1 and v1.2 for every mode, playing, busy and START/STOP state. Simulated install in the updater.",
+  "hardware_test": "Confirmed on the test unit on 2026-10-17. Step lights follow the played step (first as the v1.1 test build, after fixing the snapshot address from 0x20001970 to 0x20002070). With v1.2, Scatter stays on through Pattern Write, the step buttons program normally there, and Scatter's controls work again back in Pattern Play."
+}
