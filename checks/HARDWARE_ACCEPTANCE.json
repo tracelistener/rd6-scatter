@@ -46,7 +46,7 @@
     "TEST12_383_byte_exact_frames_and_378_ACKs": true,
     "TEST12_post_reboot_marker": 12,
     "TEST12_defaults": "Stopped, Scatter layer off, latch off, Forward",
-    "TEST12_final_listening": "Pending",
+    "TEST12_final_listening": "User passed normal Play/Stop and held Roll/release",
     "entry_observation": "Chrome missed the stock-restore entry disconnect; separate read-only update-mode guard confirmed mode before transfer. The uploader also checked update mode before sending any firmware header.",
     "scope": "One working test unit; no flash readback or interrupted-flash recovery proof"
   }
