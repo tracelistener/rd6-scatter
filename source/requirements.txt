@@ -1,1 +1,2 @@
 llvmlite==0.46.0
+capstone==5.0.9

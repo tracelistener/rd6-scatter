@@ -1,0 +1,17 @@
+{
+  "source": "Official SynthTribe firmware service",
+  "retrieved": "2026-10-16",
+  "delivery": "Original vendor SysEx containers mirrored by this project. No decrypted BIN or service credentials included.",
+  "files": {
+    "RD-6_V1.0.5.syx": {
+      "version": "1.0.5",
+      "bytes": 116186,
+      "sha256": "29fc1fb89a951a864e294764d2fe8bba4ad1ce890f9c308f09944749321571eb"
+    },
+    "RD-6_V1.0.6.syx": {
+      "version": "1.0.6",
+      "bytes": 116186,
+      "sha256": "4446914dffce8152dc7f7c0065de52d266f062a6499a22a8fef36b221982cfc3"
+    }
+  }
+}

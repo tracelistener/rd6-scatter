@@ -7,9 +7,9 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
 
-const ROOT = __dirname;
-const STOCK = process.env.RD6_STOCK_SYX || path.join(ROOT,'../work/firmware/RD-6_V1.0.5.syx');
-if(!fs.existsSync(STOCK)) throw new Error('Set RD6_STOCK_SYX to your own stock1.0.5 SysEx file.');
+const ROOT = path.resolve(__dirname,'..');
+const STOCK = process.env.RD6_STOCK_SYX || path.join(ROOT,'firmware/RD-6_V1.0.5.syx');
+if(!fs.existsSync(STOCK)) throw new Error('Missing mirrored official stock1.0.5 SysEx file.');
 
 function serve() {
   const server = http.createServer((req, res) => {
@@ -26,6 +26,7 @@ async function fresh(browser, base) {
   page.on('dialog', d => d.accept());
   page.on('pageerror', e => { throw e; });
   await page.goto(base + '/rd6_webmidi_uploader.html');
+  await page.selectOption('#buildChoice','test12');
   await page.check('#useSim');
   await page.check('#simFast');
   return page;
@@ -61,10 +62,10 @@ const events = page => page.evaluate(() => S.events.map(e => e.event));
 
 (async () => {
   const server = await serve();
-  const base = `http://127.0.0.1:${server.address().port}`;
+  const base = `http://127.0.0.1:${server.address().port}/outputs`;
   const browser = await chromium.launch(process.env.RD6_CHROME_PATH ? {executablePath:process.env.RD6_CHROME_PATH} : {});
   const results = [];
-  const check = (name, pass, detail = '') => { results.push({ name, pass, detail }); console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? '  â€” ' + detail : ''}`); };
+  const check = (name, pass, detail = '') => { results.push({ name, pass, detail }); console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? '  — ' + detail : ''}`); };
 
   try {
     // 1. Happy path: identity, entry, full transfer, reboot reply, byte-exact stream.
@@ -97,7 +98,7 @@ const events = page => page.evaluate(() => S.events.map(e => e.event));
     check('restore button is clearly labeled',await text(page,'#send')==='Restore selected firmware');
     await page.check('#backupSaved');await enterUpdate(page);await send(page);
     check('complete simulated stock restore returns to application',/^Done/.test(await text(page,'#xferStatus')) && await page.evaluate(()=>S.mode==='restore' && S.image.hash===STOCK_SHA && S.events.some(e=>e.event==='sim_stream_check' && e.byte_exact)));
-    const stock106=process.env.RD6_STOCK_106_SYX;
+    const stock106=process.env.RD6_STOCK_106_SYX || path.join(ROOT,'firmware/RD-6_V1.0.6.syx');
     if(stock106){
       await page.setInputFiles('#restoreFile',stock106);
       await page.waitForFunction(()=>/Pinned: Stock RD-6 1.0.6/.test(document.querySelector('#fileStatus').textContent));

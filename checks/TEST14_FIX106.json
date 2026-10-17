@@ -1,0 +1,68 @@
+{
+  "status": "passed_saved_Thumb_stock106_fix_equivalence",
+  "candidate_sha256": "a35f762f853885ba3545e2afe991defaaff527cb9e1b73975f754b5e51a9f5a9",
+  "state_comparisons": 1536,
+  "changes_limited_to_4_byte_hook_and_22_byte_fix": true,
+  "TEST12_effect_panel_timer_and_startup_bytes_unchanged": true,
+  "scope": "Actual saved Thumb code and stock1.0.6 branch compared over both groups, queued/no-queue states, all16 current and requested pattern numbers. No physical test or full MCU emulation.",
+  "build": "TEST14_FIX106",
+  "syx_sha256": "2cdce8d2ae225feb21a153d69669c3406410893e9d1882ac0c8fb5391468b97b",
+  "hardware_test": "Pending; no TEST14 firmware sent in this workflow work",
+  "regression_reports": {
+    "CHECKS": {
+      "status": "passed_TEST12_silent_entry_and_queued_Reverse_ARM_checks",
+      "candidate_sha256": "a35f762f853885ba3545e2afe991defaaff527cb9e1b73975f754b5e51a9f5a9",
+      "cases": [
+        "all five mode encodings/four depths: entry-held TAP suppressed across scans and both release orders; fresh TAP triggers; release ends; Stop/re-entry remembers selection without firing",
+        "effect/direction changes do not clear entry inhibit; explicit GROUP latch remains functional",
+        "real panel Reverse request after every possible step: entire current bar unchanged, next two bars exact reversed MIDI/GPIO/rest sequence",
+        "Reverse queued from Forward/Random/Ping-pong retains preceding direction until next bar",
+        "Forward/Random/Ping-pong cancel pending Reverse without delayed surprise activation",
+        "actual Stop/mode guard clears requested and effective direction",
+        "read-only marker12 status distinguishes requested Reverse from effective direction before/after bar wrap"
+      ],
+      "note": "The retained TEST12 suite was run against TEST14 bytes; historical suite labels remain TEST12."
+    },
+    "ROLL_REGRESSION": {
+      "status": "passed_TEST12_legacy_roll_regression",
+      "candidate_sha256": "a35f762f853885ba3545e2afe991defaaff527cb9e1b73975f754b5e51a9f5a9",
+      "cases": [
+        "six real wrapper shortcuts and held-FUNCTION release; no stock pattern action",
+        "last nonempty chord captured, rests retain it, later pattern changes do not replace it",
+        "18 exact rational schedules across six step boundaries; triplet phase never reset by commands",
+        "tempo and straight/triplet rate changes preserve fractional phase; no catch-up burst",
+        "off/release cancels due hit; re-press captures a new chord; Stop and selector cancel",
+        "high gate blocks fire; busy clap removed; silent capture stays silent; invalid tempo withheld; 32-update gap enforced",
+        "new layer roll modes, all rate selections, TAP release, latch and exit suppress stock actions",
+        "all 16384 CC/value helper pairs; retired12..15 rejected and retained roll values accepted",
+        "saved stock dispatcher/trampoline suppress normal hits while held; real maintenance/body/analog emitter produces cross-step triplets; release restores normal GPIO and MIDI"
+      ],
+      "note": "The retained TEST12 suite was run against TEST14 bytes; historical suite labels remain TEST12."
+    },
+    "DIRECTION_REGRESSION": {
+      "status": "passed_TEST12_direction_and_queue_regression",
+      "candidate_sha256": "a35f762f853885ba3545e2afe991defaaff527cb9e1b73975f754b5e51a9f5a9",
+      "cases": [
+        "all four directions composed before retained off/ratchet/roll modes and four depths, pattern lengths2..16, multiple wraps",
+        "mid-play direction changes preserve physical transport; Forward resumes clock position; ping-pong survives bar wrap; length change reanchors",
+        "invalid pattern metadata returns original mask without direction-state writes",
+        "compiled layer direction controls independent of selected effect/TAP; exit/Stop/mode/diagnostics restore Forward",
+        "ratchet regular/subdivision source snapshot matches in all directions; timer never rerolls Random",
+        "all six roll rates in all directions: capture fixed, pattern direction advances, release resumes selected direction",
+        "actual timer stop/mode guard clears direction state and startup default remains Forward"
+      ],
+      "note": "The retained TEST12 suite was run against TEST14 bytes; historical suite labels remain TEST12."
+    },
+    "GLITCH_CHECKS": {
+      "status": "passed_TEST12_Slice_Cut_ARM_checks",
+      "candidate_sha256": "a35f762f853885ba3545e2afe991defaaff527cb9e1b73975f754b5e51a9f5a9",
+      "cases": [
+        "Slice/Cut four depths with all directions, lengths2..16, multiple wraps; snapshot agrees; pattern and transport unchanged",
+        "actual stock dispatcher emits matching MIDI/analog GPIO chords and Cut rests at all depths; off restores current-step playback",
+        "actual four-voice stock MIDI/GPIO order and mapped rests match Slice/Cut in all directions/depths",
+        "Cut-muted hits do not replace captured Roll source"
+      ],
+      "note": "The retained TEST12 suite was run against TEST14 bytes; historical suite labels remain TEST12."
+    }
+  }
+}

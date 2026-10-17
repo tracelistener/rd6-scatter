@@ -26,8 +26,7 @@ effects off. The user also confirmed normal Play/Stop and held Roll/release afte
 
 ## Restore fallback
 
-Open your original stock `.syx` or saved restore-file JSON under **Restore
-stock / saved firmware** in the uploader. Confirm the file is saved, stop
+Use **Download firmware and save restore copy** to obtain stock1.0.6 without supplying a file. To restore, open the downloaded JSON under **Restore stock / saved firmware** in the uploader. Confirm the file is saved, stop
 playback, enter update mode and choose **Restore selected firmware**.
 
 The complete stock-file transfer path passed simulator checks. On 2026-10-16,

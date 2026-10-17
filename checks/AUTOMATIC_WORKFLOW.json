@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-16",
+  "status": "passed",
+  "browser_checks": 13,
+  "previous_transfer_checks": 22,
+  "scope": "Real Chrome UI, repository-hosted official files, simulated MIDI. No hardware access or device writes.",
+  "cases": [
+    "No user firmware inputs",
+    "Official stock1.0.6 restore JSON exact checksum",
+    "Official stock1.0.5 patch source exact checksum",
+    "Saved restore confirmation gate",
+    "TEST14 exact patch result",
+    "TEST12 exact patch result",
+    "TEST14 complete simulated378-ACK transfer",
+    "Downloaded restore JSON complete simulated1.0.6 restore",
+    "Corrupted network file invalidates authority",
+    "HTTP error invalidates authority",
+    "No MIDI request during preparation",
+    "No browser exceptions",
+    "Mobile page fits"
+  ]
+}
