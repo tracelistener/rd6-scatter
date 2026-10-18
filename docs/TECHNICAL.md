@@ -9,6 +9,7 @@ For people who want to know how Scatter and the updater work, or check them. Pla
 | `index.html` | Sends the GitHub Pages site to the updater |
 | `outputs/rd6_webmidi_uploader.html` | The updater: one self-contained page |
 | `outputs/scatter-v1.2.patch.json` | Scatter v1.2 as byte replacements on the official 1.0.5 update file |
+| `outputs/scatter-v1.3-test.patch.json` | The v1.3 test build, the same way |
 | `outputs/check_*.cjs` | Browser checks for the updater (simulated MIDI only) |
 | `firmware/` | Behringer's official 1.0.5 and 1.0.6 SysEx update files, unmodified. Source and checksums: `PROVENANCE.json` |
 | `scripts/apply_patch.py` | Builds a Scatter `.syx` from the official 1.0.5 file without a browser |
@@ -37,13 +38,39 @@ Built from the v1 patch by `source/build_scatter_v1_2.py` and checked by `source
 
 The check runs the light routine in `source/rd6_thumb_machine.py` from its real call site over 4,794 state combinations. It runs the panel and direction decisions in both v1 and v1.2 for all 84 combinations of mode, playing, busy and START/STOP. It also confirms that v1.2 differs from v1 only at the three call sites and in the three new routines. Both changes were confirmed on the test unit on 2026-10-17.
 
+### Scatter v1.3 test build
+
+SysEx SHA-256 `ff0bb9d18ae7d926f780a65dddda53cb925cb544d3c46a2d5ae1472ff7848fc5`. Scatter v1.2 plus a mute and roll mode modelled on the Quicksilver 606's, and a loop length per voice ([controls](CONTROLS.md#mute-and-roll-mode-v13-test-build)). The updater offers it as an unticked option under Install. It hasn't been tested on hardware yet.
+
+The routines are written in Thumb assembly in `source/mute_roll.py`, which also documents every hook and the RAM layout. `source/assemble_mute_roll.py` assembles them with keystone (development only) and stores the bytes in the same file. Keystone can silently encode a branch to an absolute address 2 bytes off, or an out-of-range `cbz`. So absolute branches are re-encoded in Python, and every branch, `adr` and data table is checked against the listing with capstone. `source/build_scatter_v1_3.py` builds the patch from v1.2, and `source/check_scatter_v1_3.py` checks it ([results](../checks/SCATTER_V1_3.json)).
+
+- **Steps.** Scatter's step hook used to resume the stock dispatcher at `0x08006B32` with the playing pattern (`0x20000A9C`) and Scatter's step mask. It now goes through a routine that works out the hits per row:
+  - A row that follows the pattern tests the step mask, as before.
+  - A row with its own length L plays bit n mod L, where n counts steps since Start. It is silent when Scatter silences the step.
+  - Rolls add their rows every 1, 2, 4 or 8 steps, and mutes clear rows last.
+  - The hits go to the stock dispatcher as a one-step stand-in pattern, so triggers, accent, the clap's pre-pulse and MIDI notes all use the stock code.
+- **1/32 rolls.** The step routine also arms a second hit at half the measured step. A hook at `0x08006E0C` in the stock trigger countdown fires it on the trigger pins with a step's 16-tick trigger. The clap is left out, and the extra hit isn't sent over MIDI.
+- **Scatter's Roll and Ratchet repeats.** A filter in place of `rd6_analog_only_hits` (`0x0800BB0A`) substitutes this step's hits for rows with their own length and drops muted rows.
+- **Step lights.** A hook at `0x080064FE` in the light builder shows the mode's state.
+- **Buttons.** v1.2's Pattern Play exit (`0x0800CDD8`) goes through a routine that watches FUNCTION for a clean double-click, handles the mode's buttons with Scatter's `rd6_panel_consume`, and otherwise carries on as v1.2.
+- **RAM.** The state at `0x20002100` is cleared at power-on: v1.2's start-up clear grows from 0x7C to 0x158 bytes.
+
+The 1,020 bytes of new code start at `0x0800CE00`, in the blank block run the updater recovers the mask from, which keeps 92 of its 100 blocks. The updater now needs 64.
+
+The check runs the stock code and the new routines in `source/rd6_thumb_machine.py` on modelled GPIO ports, and compares them with v1.2 with the new state at zero, as at power-on:
+
+- The step dispatcher, entered at the top and run through Scatter's hook, makes the same trigger writes, MIDI notes and RAM changes in 600 random cases, including silenced steps.
+- The trigger countdown matches in 1,428 states, the step lights in 200 cases and the Pattern Play buttons in 3,000.
+
+It checks mutes, the accent mute, rolls at every rate, own lengths and restarts against a model over 5,760 steps, on the actual pins and notes. It also measures the 1/32 second hit, checks the extra-hit filter in 400 cases, and checks every button gesture, including the clean double-click rule.
+
 ## How Scatter is distributed
 
 A build is published as a patch (`outputs/scatter-v1.2.patch.json`, format `rd6-syx-replacements-v1`): a list of byte runs that replace parts of the official 1.0.5 SysEx file. The updater and `scripts/apply_patch.py` apply it on the user's computer and accept the result only if its SHA-256 matches the pinned build hash.
 
 The repository includes Behringer's original 1.0.5 and 1.0.6 SysEx update files, mirrored without modification ([PROVENANCE.json](../firmware/PROVENANCE.json)). It does not include decrypted firmware images, device dumps, vendor service credentials or raw transfer logs. The public history starts clean; earlier research history is private.
 
-The update file is 5 setup frames, a header and 377 data frames. The data frames carry the image XOR a repeating 128-byte mask, 7-bit packed: each group's first byte holds the top bits of the next seven bytes. The header stores the image size (bytes 10–13) and the 32-bit sum of all image bytes (bytes 14–17), each as four 7-bit digits, low digit first. The updater recovers the mask from the longest run of identical 128-byte blocks and needs at least 100, so new code must not break up that run.
+The update file is 5 setup frames, a header and 377 data frames. The data frames carry the image XOR a repeating 128-byte mask, 7-bit packed: each group's first byte holds the top bits of the next seven bytes. The header stores the image size (bytes 10–13) and the 32-bit sum of all image bytes (bytes 14–17), each as four 7-bit digits, low digit first. The updater recovers the mask from the longest run of identical 128-byte blocks and needs at least 64. Official files have 100 or more, and the v1.3 test build keeps 92, so new code must not break up that run any further.
 
 Build a Scatter file without a browser:
 
@@ -121,7 +148,7 @@ The backup (`rd6-patterns-settings-backup-v1`) stores each pattern as 1-based `g
 
 ### File checks and pinning
 
-Every image is parsed before use: 383 frames, the RD-6 prefix on every frame, the setup and header commands, data block counters 0–376 in order, the unpacked size against the header, the header model strings, recovery of the XOR mask, plausible Cortex-M vectors for the GD32F350 (16 KB SRAM, 128 KB flash) and, for pinned files, the SHA-256 of the decoded image. Pinned files are official 1.0.5 and 1.0.6, Scatter v1.2, the older Scatter v1 and TEST12, and two older test builds. A withdrawn test build (TEST02) is always refused. Any other structurally valid file needs the user to type the first 8 hex digits of its SHA-256.
+Every image is parsed before use: 383 frames, the RD-6 prefix on every frame, the setup and header commands, data block counters 0–376 in order, the unpacked size against the header, the header model strings, recovery of the XOR mask, plausible Cortex-M vectors for the GD32F350 (16 KB SRAM, 128 KB flash) and, for pinned files, the SHA-256 of the decoded image. Pinned files are official 1.0.5 and 1.0.6, Scatter v1.2, the v1.3 test build, the older Scatter v1 and TEST12, and two older test builds. A withdrawn test build (TEST02) is always refused. Any other structurally valid file needs the user to type the first 8 hex digits of its SHA-256.
 
 ### Simulator
 
@@ -158,6 +185,7 @@ The diagnostic doesn't help with a first install either, because custom code has
 - **Payloads.** With Python 3.12, `pip install -r source/requirements.txt`, then `python -I source/verify_payloads.py`. This compiles the three TEST12 LLVM payloads and compares the object bytes with `source/objects.json`. It is not a full firmware rebuild or an MCU emulator.
 - **Scatter v1's 1.0.6 fix.** `python -I source/check_fix106.py` reproduces the 1536 state comparisons with stock 1.0.6, using the included vendor files. Decoding stays in memory; no decrypted file is written.
 - **Scatter v1.2.** `python -I source/build_scatter_v1_2.py` rebuilds the v1.2 patch from v1 and confirms it matches `outputs/scatter-v1.2.patch.json` byte for byte. `python -I source/check_scatter_v1_2.py` runs the step-light and Pattern Write checks described in [What v1.2 changes](#what-v12-changes). Both decode in memory only.
+- **Scatter v1.3 test build.** `python -I source/build_scatter_v1_3.py` rebuilds the patch from v1.2 and confirms it matches `outputs/scatter-v1.3-test.patch.json`. `python -I source/check_scatter_v1_3.py` runs the checks described in [Scatter v1.3 test build](#scatter-v13-test-build).
 - **Updater.** Install Playwright and Chromium (`npm install playwright`, then `npx playwright install chromium`) and run `node outputs/check_rd6_webmidi_uploader.cjs` and `node outputs/check_rd6_automatic_workflow.cjs`. Set `RD6_CHROME_PATH` to use an installed Chrome and `RD6_SCREENSHOT_DIR` to save screenshots. Both use simulated MIDI only.
 
 ## Test results
@@ -169,6 +197,7 @@ The diagnostic doesn't help with a first install either, because custom code has
   - *Scatter v1 (TEST14) install*, from official 1.0.6. Chrome saw the re-enumeration this time: the port was absent at 2.7 s and back at 3.0 s, after two entry ACKs. All 378 firmware frames were ACKed (3.2–42.1 ms each), and the trailing-reply check passed. The version query after the restart got no reply, and Reconnect was offered. After Reconnect, the RD-6 reported 1.0.5, the TEST14 header version.
 - **Scatter v1**: offline checks ([TEST14_FIX106.json](../checks/TEST14_FIX106.json)). It installs and runs on hardware (see above), and was played on the test unit on 2026-10-17 with no fault found. A pattern that seemed to roll on its own turned out to be set to a length of 1. The full TEST12 listening checklist hasn't been repeated.
 - **Scatter v1.2**: offline checks ([SCATTER_V1_2.json](../checks/SCATTER_V1_2.json)). Installed and played on the test unit on 2026-10-17: the step lights follow the played step, Scatter stays on through Pattern Write while the step buttons program normally there, and Scatter's controls work again back in Pattern Play.
+- **Scatter v1.3 test build**: offline checks ([SCATTER_V1_3.json](../checks/SCATTER_V1_3.json)) and a simulated install. Not yet tested on hardware.
 - **Updater, simulated**: [UPLOADER_SIMULATOR.json](../checks/UPLOADER_SIMULATOR.json) and [AUTOMATIC_WORKFLOW.json](../checks/AUTOMATIC_WORKFLOW.json).
 - **Other offline checks**: `checks/RD6_SCATTER_TEST12_*.json`.
 

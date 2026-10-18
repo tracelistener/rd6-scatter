@@ -51,6 +51,40 @@ If you switch to Pattern Write while a pattern plays, Scatter stays on and the d
 
 (The older Scatter v1 turned Scatter off and set the direction back to Forward when you switched to Pattern Write.)
 
+## Mute and roll mode (v1.3 test build)
+
+The v1.3 test build adds a performance mode modelled on the Quicksilver 606's mute and roll mode. It works in **PATTERN PLAY** while a pattern is playing.
+
+- **Enter or leave:** double-click **FUNCTION**. Press nothing else during either click.
+- **Step lights:** steps 1–8 lit = that voice is playing; steps 9–16 lit = its roll is on.
+
+| Button | What it does |
+|---|---|
+| **1 – 8** | Mute or unmute BD, SD, LT, HT, CY, CP, OH, CH. You can press several at once |
+| **9 – 16** | Roll on or off for the same voices, in the same order |
+| **PATTERN GROUP** | Mute or unmute the accent |
+| **Hold TAP + 9 – 14** | Roll rate: off, 1/32, 1/16, 1/8, 1/4, 1/2. While you hold TAP, the lit step shows the rate |
+| **Hold TAP + 15** | All rolls off |
+| **Hold TAP + 16** | Unmute everything |
+
+The roll rate starts at **off**, so pick one before rolls play: for example, hold TAP and press 11 for 1/16. Rolls play the voice on top of the pattern: 1/16 on every step, 1/8 on every second step, 1/4 on every fourth and 1/2 on every eighth. 1/32 plays twice per step, except the clap, which plays once.
+
+### Length per voice
+
+Each voice can loop over its own number of steps, so it drifts against the rest of the pattern.
+
+1. In mute and roll mode, **hold** the voice's button (1–8). After about half a second the step lights show its length, and the voice keeps its mute setting.
+2. Keep holding it and press the step for the new length: step 5 = 5 steps.
+3. To make the voice follow the pattern again, hold its button and press **TAP**.
+
+A voice with its own length starts from its first step when you press Start and always plays forward, whatever Scatter's direction. It's silent on steps that Scatter's effects cut out.
+
+### Good to know
+
+- Stopping, or leaving Pattern Play, ends the mode. Mutes, rolls, the rate and the lengths stay, and keep working in every mode, until you switch the RD-6 off.
+- In the mode, steps, TAP and PATTERN GROUP only do what's listed above: Scatter's own buttons and the RD-6's pattern selection wait until you leave. START/STOP works as usual.
+- MIDI out sends what plays, including mutes, rolls and lengths. The second hit of a 1/32 roll is the exception: it isn't sent over MIDI.
+
 ## Shortcuts without turning Scatter on
 
 Hold **FUNCTION first**, then press a step button:

@@ -1,0 +1,27 @@
+{
+  "status": "passed_scatter_v1_3_test",
+  "syx_sha256": "ff0bb9d18ae7d926f780a65dddda53cb925cb544d3c46a2d5ae1472ff7848fc5",
+  "image_sha256": "f86c2a218348bdcb053318523b3cf16778ad32bbbc5b8ef96db3ca4e5b46113b",
+  "bytes_changed_from_v1_2": 926,
+  "header_checksum_ok": true,
+  "mask_run_blocks": 92,
+  "dispatcher_cases_unchanged": 600,
+  "countdown_cases_unchanged": 1428,
+  "light_cases": 200,
+  "filter_cases": 400,
+  "panel_cases_unchanged": 3000,
+  "feature_steps": 5760,
+  "build": "SCATTER_V1_3_TEST",
+  "date": "2026-10-17",
+  "patch": "outputs/scatter-v1.3-test.patch.json",
+  "changes": [
+    "Steps: Scatter's step hook tail at 0x0800BBD4 (ldrh r1, [r3, #4] and half of ldr.w r8) becomes b.w to a 310-byte routine at 0x0800CE00 that works out each row's hit (following the pattern, or its own length from steps since Start), adds rolls, applies mutes and resumes the stock dispatcher at 0x08006B32 with a one-step stand-in pattern.",
+    "1/32 rolls: b.w at 0x08006E0C in the stock trigger countdown (ldr r0, [r5]; cmp r0, #0) to a 112-byte routine at 0x0800CF38 that counts TIMER14 ticks, ends the mode when playback stops or leaves Pattern Play, and fires the armed second hit with a step's 16-tick trigger.",
+    "Step lights: b.w at 0x080064FE in the light builder (movs r1, #0; mov r4, r3) to a 24-byte routine at 0x0800CFA8 that shows the mode's state.",
+    "Extra hits: bl at 0x0800BB0A (Scatter's call to rd6_analog_only_hits) to a 32-byte filter at 0x0800CFC0 that uses this step's hits for rows with their own length and drops muted rows.",
+    "Buttons: v1.2's Pattern Play exit at 0x0800CDD8 (b.w 0x0800BF2A) goes through a 542-byte routine at 0x0800CFE0: clean FUNCTION double-click, mute and roll mode buttons, length per voice.",
+    "Start-up clears the new state at 0x20002100: the zero-init entry for 0x20002000 grows from 0x7C to 0x158 bytes (0x0800BC58)."
+  ],
+  "scope": "Offline: byte diff against Scatter v1.2, every branch, adr and data table checked against the assembly listing with capstone, header checksum, mask recoverability (92 blocks, updater needs 64). source/rd6_thumb_machine.py runs the stock code and the new routines on modelled GPIO ports: with the new state at zero, the step dispatcher (from its entry through Scatter's step hook), the trigger countdown, the light builder and the Pattern Play buttons match v1.2 exactly (trigger writes, MIDI notes, RAM); mutes, accent mute, rolls at every rate, own lengths, silenced steps and restarts match a model over 5,760 steps; the 1/32 second hit's pins and timing; the extra-hit filter; every button gesture. Simulated install in the updater.",
+  "hardware_test": "Not yet tested on hardware."
+}

@@ -47,6 +47,8 @@ New since Scatter v1:
 
 Already have Scatter v1? Install again the same way to get v1.2.
 
+**Test build, Scatter v1.3:** adds a mute and roll mode (double-click FUNCTION) and a loop length for each voice ([how it works](docs/CONTROLS.md#mute-and-roll-mode-v13-test-build)). To try it, tick **Install the v1.3 test build instead** before installing. It hasn't been tested on a real RD-6 yet.
+
 ## Go back to the official firmware
 
 1. Open the [updater](https://tracelistener.github.io/rd6-scatter/) and click **Connect**.
