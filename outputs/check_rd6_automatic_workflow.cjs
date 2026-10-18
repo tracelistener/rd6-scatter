@@ -11,6 +11,7 @@ const ROOT = path.resolve(__dirname, '..');
 const sha = b => crypto.createHash('sha256').update(b).digest('hex');
 const SHA106 = '4446914dffce8152dc7f7c0065de52d266f062a6499a22a8fef36b221982cfc3';
 const SCATTER_V1_3 = 'ff0bb9d18ae7d926f780a65dddda53cb925cb544d3c46a2d5ae1472ff7848fc5';
+const MIDI_TEST = '75f9f392a228ac50779d2dd0107db2d716a6fa95e8ea5d5d9aab7fe9ae70edc2';
 let checks = 0;
 function check(name, pass) { if (!pass) throw new Error('FAIL ' + name); console.log('PASS ' + name); checks++; }
 
@@ -69,8 +70,8 @@ function fakeMidi(ports) {
     let page = await open([{ name: 'Other Synth' }, { name: 'RHYTHM DESIGNER RD-6 MIDI 1', version: '1.0.6' }]);
     check('no MIDI access requested before Connect', await page.evaluate(() => window.__midiRequests === 0));
     check('install blocked before connecting', await page.isDisabled('#start') && /Connect your RD-6 first/.test(await txt(page, '#startHint')));
-    check('only Scatter v1.3 is offered, with no build to choose', await page.$('input[name=build]') === null && await page.$('#useTestBuild') === null &&
-      await page.$('#useV13') === null);
+    check('Scatter v1.3 is the default; the MIDI extra-hit test build is an unticked option', await page.$('input[name=build]') === null && await page.$('#useTestBuild') === null &&
+      await page.$('#useV13') === null && await page.isVisible('#useMidiTest') && !(await page.isChecked('#useMidiTest')));
     await page.click('#connect'); await idle(page);
     check('port found automatically and official 1.0.6 identified', await page.inputValue('#portName') === 'RHYTHM DESIGNER RD-6 MIDI 1' &&
       /1\.0\.6, Behringer's latest/.test(await txt(page, '#devStatus')) && await page.evaluate(() => window.__midiRequests === 1));
@@ -105,12 +106,13 @@ function fakeMidi(ports) {
     await page.click('#connect'); await idle(page);
     check('silent RD-6 on Connect: lost Chrome connection explained and Reconnect offered',
       /Chrome may have lost its connection/.test(await txt(page, '#devStatus')) && await page.isVisible('#reconnect1') && await page.isHidden('#reconnect3'));
+    await page.check('#useMidiTest');
     await page.check('input[name=action][value=restore]');
     await Promise.all([page.waitForEvent('load'), page.click('#reconnect1')]);
     await page.waitForFunction(() => typeof S !== 'undefined' && S.events.some(e => e.event === 'reconnect_reload') && !S.busy &&
       /Still no answer/.test(document.querySelector('#xferStatus').textContent), null, { timeout: 30000 });
-    check('after Reconnect a still-silent RD-6 gets next steps, with the choice kept and no unplug advice',
-      await page.evaluate(() => radio('action') === 'restore' && window.__midiRequests === 1) && await page.isVisible('#reconnect1') &&
+    check('after Reconnect a still-silent RD-6 gets next steps, with the choices kept and no unplug advice',
+      await page.evaluate(() => radio('action') === 'restore' && $('useMidiTest').checked && window.__midiRequests === 1) && await page.isVisible('#reconnect1') &&
       !/unplug/.test(await txt(page, '#xferStatus')));
     await page.close();
 
@@ -123,6 +125,27 @@ function fakeMidi(ports) {
       /^Done! Scatter v1\.3 is installed/.test(await txt(page, '#xferStatus')) && /double-click FUNCTION/.test(await txt(page, '#xferStatus')));
     const t14 = await download(page, '#saveScatter');
     check('Scatter v1.3 .syx saved from Advanced has the pinned checksum', sha(t14.bytes) === SCATTER_V1_3 && t14.name === 'RD6_Scatter_v1.3.syx');
+    await page.close();
+
+    // C2. The MIDI extra-hit test build, chosen with its checkbox: its own pinned image and .syx.
+    page = await simPage(() => { Sim.version = '1.0.6'; });
+    await download(page, '#saveBackup'); await page.check('#backupSaved'); await page.check('#useMidiTest'); await page.check('#understand');
+    check('the .syx button names the chosen build', /MIDI extra-hit/.test(await txt(page, '#saveScatter')));
+    await start(page);
+    check('MIDI test build installs with 378 ACKs and its exact pinned image stream', await page.evaluate(() => S.image.hash) === MIDI_TEST &&
+      await page.evaluate(() => S.events.filter(e => e.event === 'firmware_ack').length === 378 && S.events.some(e => e.event === 'sim_stream_check' && e.byte_exact)) &&
+      /^Done! Scatter v1\.3 MIDI extra-hit \(test build\) is installed/.test(await txt(page, '#xferStatus')) && /watch MIDI out/.test(await txt(page, '#xferStatus')));
+    const midiFile = await download(page, '#saveScatter');
+    check('MIDI test .syx saved from Advanced has its pinned checksum', sha(midiFile.bytes) === MIDI_TEST && midiFile.name === 'RD6_Scatter_v1.3_MIDI_test.syx');
+    await page.close();
+    page = await simPage(() => { Sim.version = '1.0.6'; });
+    await download(page, '#saveBackup'); await page.check('#backupSaved'); await page.check('#useMidiTest'); await page.check('#understand');
+    const badPatch = JSON.parse(fs.readFileSync(path.join(ROOT, 'outputs/scatter-v1.3-midi-test.patch.json')));
+    badPatch.runs[0][1] = Buffer.from([0]).toString('base64');
+    await page.route('**/scatter-v1.3-midi-test.patch.json', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(badPatch) }));
+    await start(page);
+    check('a modified MIDI test patch is refused before anything is sent', /hash mismatch/.test(await txt(page, '#xferStatus')) &&
+      /Nothing was sent to your RD-6/.test(await txt(page, '#xferStatus')) && await page.evaluate(() => !S.events.some(e => e.event === 'tx')));
     await page.close();
 
     // D. A version this page has no copy of.

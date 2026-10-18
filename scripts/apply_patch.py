@@ -7,10 +7,13 @@ STOCK='29fc1fb89a951a864e294764d2fe8bba4ad1ce890f9c308f09944749321571eb'
 # v1.2 is v1 plus step lights that follow the played step and Scatter staying on in Pattern Write
 # (source/build_scatter_v1_2.py). v1.2, v1 (developed as TEST14_FIX106) and TEST12 are kept in source/
 # only so each build can be rebuilt from its parent and the checks can confirm what each one changes.
+# The MIDI extra-hit test build is v1.3 plus Roll, Ratchet and 1/32 roll repeats on MIDI out
+# (source/build_midi_extra.py); build it with --build scatter-v1.3-midi-test.
 PATCHES={'scatter-v1':('source/scatter-v1.patch.json','2cdce8d2ae225feb21a153d69669c3406410893e9d1882ac0c8fb5391468b97b'),
          'scatter-v1.2':('source/scatter-v1.2.patch.json','8bbc359ebdf78357f7233556bf2843d53b34e8a1a52a4f1c0b8b83a9db9d41dc'),
          'test12':('source/TEST12.patch.json','9bc1c3a74da476c6694724314d275030a7debb4299c561d06cf56f4e55b540ef'),
-         'scatter-v1.3':('outputs/scatter-v1.3.patch.json','ff0bb9d18ae7d926f780a65dddda53cb925cb544d3c46a2d5ae1472ff7848fc5')}
+         'scatter-v1.3':('outputs/scatter-v1.3.patch.json','ff0bb9d18ae7d926f780a65dddda53cb925cb544d3c46a2d5ae1472ff7848fc5'),
+         'scatter-v1.3-midi-test':('outputs/scatter-v1.3-midi-test.patch.json','75f9f392a228ac50779d2dd0107db2d716a6fa95e8ea5d5d9aab7fe9ae70edc2')}
 def sha(data):return hashlib.sha256(data).hexdigest()
 def apply(data,patch):
     if patch.get('format')!='rd6-syx-replacements-v1' or patch.get('source_sha256')!=STOCK or patch.get('target_sha256') not in {t for _,t in PATCHES.values()} or len(data)!=patch.get('size') or sha(data)!=STOCK:
@@ -23,9 +26,10 @@ def apply(data,patch):
     if sha(out)!=patch['target_sha256']:raise ValueError('Patched Scatter checksum mismatch')
     return bytes(out)
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('stock',type=Path);p.add_argument('output',type=Path);a=p.parse_args()
-    data=apply(a.stock.read_bytes(),json.loads((ROOT/PATCHES['scatter-v1.3'][0]).read_text()))
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('stock',type=Path);p.add_argument('output',type=Path)
+    p.add_argument('--build',choices=('scatter-v1.3','scatter-v1.3-midi-test'),default='scatter-v1.3');a=p.parse_args()
+    data=apply(a.stock.read_bytes(),json.loads((ROOT/PATCHES[a.build][0]).read_text()))
     # Exclusive create protects original firmware and existing backups.
     with a.output.open('xb') as f:f.write(data)
-    print('Prepared Scatter v1.3 locally:',sha(data));print('Original firmware file unchanged; keep it for possible restoration. No device readback was performed.')
+    print('Prepared',a.build,'locally:',sha(data));print('Original firmware file unchanged; keep it for possible restoration. No device readback was performed.')
 if __name__=='__main__':main()

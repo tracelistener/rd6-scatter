@@ -138,6 +138,7 @@ footer { color: var(--muted); font-size: 14px; margin-top: 18px; }
 
     <div id="installOptions">
       <p class="hint">Scatter is built on Behringer firmware 1.0.5, so afterwards your RD-6 reports version 1.0.5. That's expected. Your patterns and settings are stored separately and installing doesn't change them, but saving them in step 2 first is a good idea.</p>
+      <label class="inline"><input type="checkbox" id="useMidiTest"><span>Install the <strong>MIDI extra-hit test build</strong> instead: Scatter v1.3, with the Roll, Ratchet and 1/32 roll repeats also sent on MIDI out. Tested on one RD-6 so far.</span></label>
       <label class="inline"><input type="checkbox" id="understand"><span>I understand Scatter is unofficial, experimental firmware.</span></label>
     </div>
 
@@ -196,7 +197,7 @@ footer { color: var(--muted); font-size: 14px; margin-top: 18px; }
 
     <h3>Firmware files</h3>
     <div class="row"><button id="saveScatter">Save Scatter v1.3 as a .syx file</button></div>
-    <p class="hint">Builds Scatter v1.3 on this computer from the official 1.0.5 file and saves it. Official files: <a href="../firmware/RD-6_V1.0.6.syx" download>1.0.6</a> · <a href="../firmware/RD-6_V1.0.5.syx" download>1.0.5</a>.</p>
+    <p class="hint">Builds Scatter v1.3 on this computer from the official 1.0.5 file and saves it (the MIDI extra-hit test build if it's ticked under Install). Official files: <a href="../firmware/RD-6_V1.0.6.syx" download>1.0.6</a> · <a href="../firmware/RD-6_V1.0.5.syx" download>1.0.5</a>.</p>
     <div id="fileStatus" class="status idle">No firmware prepared yet.</div>
     <ul id="fileChecks" class="checks"></ul>
 
@@ -292,6 +293,8 @@ const PINNED = {
     { name: 'Scatter v1.2 (older build: step lights follow the played step; Scatter stays on in Pattern Write)', bin: '1f5c1dad6efb53e6bba33bcbb32f9f490080b9d564ba99d0fc789efe7865bf95', allowed: true, label: 'Scatter v1.2 (older build)', kind: 'scatter' },
   'ff0bb9d18ae7d926f780a65dddda53cb925cb544d3c46a2d5ae1472ff7848fc5':
     { name: 'Scatter v1.3 (mute and roll mode and a length per voice, on Scatter v1.2)', bin: 'f86c2a218348bdcb053318523b3cf16778ad32bbbc5b8ef96db3ca4e5b46113b', allowed: true, label: 'Scatter v1.3', kind: 'scatter' },
+  '75f9f392a228ac50779d2dd0107db2d716a6fa95e8ea5d5d9aab7fe9ae70edc2':
+    { name: 'Scatter v1.3 MIDI extra-hit test build (Roll, Ratchet and 1/32 roll repeats on MIDI out)', bin: 'ac0fa39bce04bae0b1279c640df03871d6990c1fb589ca1bbf4d1056dc6f5f9f', allowed: true, label: 'Scatter v1.3 MIDI extra-hit (test build)', kind: 'scatter' },
   '4446914dffce8152dc7f7c0065de52d266f062a6499a22a8fef36b221982cfc3':
     { name: 'Stock RD-6 1.0.6', bin: 'e20968a504ccf4302039cb99cfe647acab4f8bd12515b87a8828fd61a46d1656', allowed: true, label: 'Official firmware 1.0.6', kind: 'official' },
   '9bc1c3a74da476c6694724314d275030a7debb4299c561d06cf56f4e55b540ef':
@@ -311,6 +314,10 @@ const OFFICIAL = { '1.0.5': STOCK_SHA, '1.0.6': STOCK106_SHA };
 // Scatter v1.3: v1.2 plus mute and roll mode and a loop length per voice (source/build_scatter_v1_3.py).
 const SCATTER = { id: 'SCATTER_V1_3', label: 'Scatter v1.3', patch: 'scatter-v1.3.patch.json', sha: 'ff0bb9d18ae7d926f780a65dddda53cb925cb544d3c46a2d5ae1472ff7848fc5', file: 'RD6_Scatter_v1.3.syx',
   tryIt: 'Try it: start a pattern in PATTERN PLAY, hold FUNCTION and press TAP, press step button 1 (Roll), then hold TAP. For mute and roll mode, double-click FUNCTION.' };
+// MIDI extra-hit test build: v1.3 plus Roll, Ratchet and 1/32 roll repeats on MIDI out (source/build_midi_extra.py).
+const MIDI_TEST = { id: 'SCATTER_V1_3_MIDI_TEST', label: 'Scatter v1.3 MIDI extra-hit (test build)', patch: 'scatter-v1.3-midi-test.patch.json', sha: '75f9f392a228ac50779d2dd0107db2d716a6fa95e8ea5d5d9aab7fe9ae70edc2', file: 'RD6_Scatter_v1.3_MIDI_test.syx',
+  tryIt: 'Try it: play Roll or Ratchet, or a 1/32 roll in mute and roll mode, and watch MIDI out with a MIDI monitor or another drum machine. The test checklist is in docs/CONTROLS.md.' };
+const chosenBuild = () => ($('useMidiTest').checked ? MIDI_TEST : SCATTER);
 const BACKUP_FORMAT = 'rd6-firmware-file-backup-v1';
 const BACKUP_KINDS = ['official-download-not-device-dump', 'user-supplied-file-not-device-dump'];
 
@@ -914,7 +921,8 @@ function refresh() {
   $('abort').disabled = !S.transferring || S.abort;
   $('abort').textContent = S.abort ? 'Stopping...' : S.stopArmed ? 'Click again to stop' : 'Stop';
   document.querySelectorAll('input[type=radio]').forEach(r => { r.disabled = S.busy; });
-  for (const id of ['connect', 'saveBackup', 'restoreFile', 'patternsFile', 'understand', 'noBackupOk', 'allowUnpinned', 'unpinnedConfirm', 'useSim', 'portName', 'saveScatter']) $(id).disabled = S.busy;
+  for (const id of ['connect', 'saveBackup', 'restoreFile', 'patternsFile', 'useMidiTest', 'understand', 'noBackupOk', 'allowUnpinned', 'unpinnedConfirm', 'useSim', 'portName', 'saveScatter']) $(id).disabled = S.busy;
+  $('saveScatter').textContent = `Save ${chosenBuild().label} as a .syx file`;
   $('reconnect1').hidden = S.reconnect !== 'connect';
   $('reconnect3').hidden = S.reconnect !== 'start';
   $('connect').className = S.reconnect === 'connect' ? '' : 'primary';
@@ -968,7 +976,7 @@ function onMidiStateChange() {
 function doReconnect() {
   if (S.busy) return;
   const stash = { v: 1, at: Date.now(), action: action(), restoreFrom: restoreFrom(),
-    understand: $('understand').checked, sim: $('useSim').checked, written: S.reconnectWritten,
+    understand: $('understand').checked, midiTest: $('useMidiTest').checked, sim: $('useSim').checked, written: S.reconnectWritten,
     expectVersion: S.image ? S.image.version : null, expectKind: S.image ? (S.image.pin ? S.image.pin.kind : 'other') : null,
     log: { started: S.started, mode: S.mode, image_sha256: S.logImage, events: S.events } };
   log('reconnect_requested', { written: S.reconnectWritten });
@@ -981,7 +989,7 @@ async function resumeAfterReconnect() {
   if (!stash || stash.v !== 1 || !(Date.now() - stash.at < 10 * 60 * 1000)) return;
   const pick = (name, value) => { const r = document.querySelector(`input[name="${name}"][value="${value}"]`); if (r) r.checked = true; };
   pick('action', stash.action); pick('restoreFrom', stash.restoreFrom);
-  $('understand').checked = !!stash.understand;
+  $('understand').checked = !!stash.understand; $('useMidiTest').checked = !!stash.midiTest;
   if (stash.sim) { $('useSim').checked = true; Sim.reset(); status('portStatus', 'warn', 'Using the SIMULATED RD-6. No hardware is touched.'); }
   // Keep the failed run's log so it can still be saved after the reload.
   if (stash.log && Array.isArray(stash.log.events)) {
@@ -1103,7 +1111,7 @@ async function doStart() {
   if (S.busy || startBlocker() !== null) return;
   if (action() === 'restore' && restoreFrom() === 'patterns') return doRestorePatterns();
   const install = action() === 'install', fromFile = !install && restoreFrom() === 'file';
-  const build = SCATTER;
+  const build = chosenBuild();
   const question = install ? `Install ${build.label} on your RD-6?` : fromFile ? `Restore this file on your RD-6?\n${S.restoreFile.label}` : 'Restore official firmware 1.0.6 on your RD-6?';
   if (!confirm(`${question}\n\nMake sure the RD-6 is stopped (not playing). This usually takes under a minute. Keep this tab open and in front, and don't unplug the RD-6 or switch it off until the updater says Done.`)) return;
   const restoreFileAtStart = S.restoreFile;
@@ -1185,7 +1193,7 @@ async function doPreambleOnly() {
 }
 async function doSaveScatter() {
   if (S.busy) return;
-  const build = SCATTER;
+  const build = chosenBuild();
   S.busy = true; refresh();
   status('fileStatus', 'idle', `Preparing ${build.label}...`);
   try {
@@ -1311,7 +1319,7 @@ $('saveScatter').addEventListener('click', doSaveScatter);
 $('download').addEventListener('click', downloadLog);
 $('saveLog').addEventListener('click', downloadLog);
 document.querySelectorAll('input[type=radio]').forEach(r => r.addEventListener('change', refresh));
-['backupSaved', 'noBackupOk', 'understand', 'allowUnpinned'].forEach(id => $(id).addEventListener('change', refresh));
+['backupSaved', 'noBackupOk', 'useMidiTest', 'understand', 'allowUnpinned'].forEach(id => $(id).addEventListener('change', refresh));
 $('unpinnedConfirm').addEventListener('input', refresh);
 $('useSim').addEventListener('change', () => {
   const sim = $('useSim').checked;
