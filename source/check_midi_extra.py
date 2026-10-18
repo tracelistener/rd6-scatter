@@ -643,7 +643,7 @@ def main():
         'mid_end_to_end': mid_end_to_end(image),
     }
     if '--mutations' in sys.argv: report['mutations_caught_by'] = mutations(v13, image)
-    report.update(hardware_tested=False, status='passed_scatter_v1_3_midi_test')
+    report['status'] = 'passed_scatter_v1_3_midi_test'   # offline only: no hardware is used
     print(json.dumps(report, indent=2))
 
 

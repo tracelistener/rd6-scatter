@@ -27,7 +27,7 @@ For people who want to know how Scatter and the updater work, or check them. Pla
 
 The v1.2, v1 and TEST12 patches stay in `source/` only so that each build can be rebuilt from its parent, and so the checks can confirm exactly what each step changes. The updater still recognises a v1.2, v1 or TEST12 file as an older Scatter build.
 
-The updater also offers the **MIDI extra-hit test build** as an unticked option: v1.3 with Scatter's Roll and Ratchet repeats and the 1/32 roll's second hit also sent on MIDI out ([below](#midi-extra-hit-test-build)). SysEx SHA-256: `75f9f392a228ac50779d2dd0107db2d716a6fa95e8ea5d5d9aab7fe9ae70edc2`. It hasn't been tested on hardware.
+The updater also offers the **MIDI extra-hit test build** as an unticked option: v1.3 with Scatter's Roll and Ratchet repeats and the 1/32 roll's second hit also sent on MIDI out ([below](#midi-extra-hit-test-build)). SysEx SHA-256: `75f9f392a228ac50779d2dd0107db2d716a6fa95e8ea5d5d9aab7fe9ae70edc2`. Confirmed on the test unit on 2026-10-18.
 
 Scatter is a patch on official firmware **1.0.5** and reports application version 1.0.5. Behringer's newest firmware is **1.0.6**. Scatter is not a port onto 1.0.6: v1 adds only the documented 1.0.6 fix (keeping a queued pattern number when the pattern group changes during playback) to TEST12, as a 4-byte hook and a 22-byte routine. Its saved Thumb code matched stock 1.0.6 in all 1536 state comparisons of `source/check_fix106.py`, and the effect, panel, timer and startup bytes are unchanged from TEST12 ([checks/TEST14_FIX106.json](../checks/TEST14_FIX106.json)). The diagnostic build marker is still 12 in v1 and v1.2.
 
@@ -69,7 +69,7 @@ It checks mutes, the accent mute, rolls at every rate, own lengths and restarts 
 
 ### MIDI extra-hit test build
 
-`outputs/scatter-v1.3-midi-test.patch.json`, built from the v1.3 patch by `source/build_midi_extra.py` and checked by `source/check_midi_extra.py` ([results](../checks/SCATTER_MIDI_TEST.json)). SysEx SHA-256 `75f9f392a228ac50779d2dd0107db2d716a6fa95e8ea5d5d9aab7fe9ae70edc2`, decoded image `ac0fa39bce04bae0b1279c640df03871d6990c1fb589ca1bbf4d1056dc6f5f9f`. Offline and simulator checks only; **it hasn't been tested on hardware** ([checklist](CONTROLS.md#testing-it)). It was first made on v1.2 as a separate test; this version is the same queue protection and repeat notes on v1.3, plus the 1/32 roll's second hit.
+`outputs/scatter-v1.3-midi-test.patch.json`, built from the v1.3 patch by `source/build_midi_extra.py` and checked by `source/check_midi_extra.py` ([results](../checks/SCATTER_MIDI_TEST.json)). SysEx SHA-256 `75f9f392a228ac50779d2dd0107db2d716a6fa95e8ea5d5d9aab7fe9ae70edc2`, decoded image `ac0fa39bce04bae0b1279c640df03871d6990c1fb589ca1bbf4d1056dc6f5f9f`. Installed and played on the test unit on 2026-10-18 ([checklist](CONTROLS.md#testing-it), [result](#test-results)). It was first made on v1.2 as a separate test; this version is the same queue protection and repeat notes on v1.3, plus the 1/32 roll's second hit.
 
 **Why v1.3 sends no repeats on MIDI.** Traced in official 1.0.5 and the v1.3 image:
 
@@ -86,7 +86,7 @@ It checks mutes, the accent mute, rolls at every rate, own lengths and restarts 
 - **1/32 rolls.** In v1.3's TICK, the instruction pair that loads the trigger counter when the second hit fires (`0x0800CF9C`, `movs r0, #21; str r0, [r5]`) branches to MID. MID queues a note for each pin TICK raised (MID_C, and the cymbal's PB15 in MID_B), in the dispatcher's order and with the accent of the step that armed it: bit 0 of the stand-in pattern's accent row, which is what the accent pin PC6 still holds. It then runs the two instructions and resumes TICK at `0x0800CFA0`, with every register the countdown uses restored.
 - **Matching note-offs.** The off drain used to stop at the write cursor. If TIMER14 queued notes during the drain, they could get their note-offs before their note-ons, and then no final note-off. One halfword at `0x08005534` (`ldr r1, [r4, #0x18]` becomes `ldr r1, [r4, #0x1C]`) makes it stop at the note-on cursor, so only notes already sent are released. Without interleaving the output is identical.
 
-The masked sections contain only SRAM accesses and integer arithmetic: no output routine, peripheral access, wait or loop. FILTER and MID unmask between notes. In the interpreter the stock enqueue stays masked for at most 12 instructions and an extra note for at most 36. That isn't a measured latency: Cortex-M timing, peripheral deadlines, stack use and MIDI OUT bandwidth still need testing on hardware.
+The masked sections contain only SRAM accesses and integer arithmetic: no output routine, peripheral access, wait or loop. FILTER and MID unmask between notes. In the interpreter the stock enqueue stays masked for at most 12 instructions and an extra note for at most 36. That isn't a measured latency: Cortex-M timing, peripheral deadlines, stack use and MIDI OUT bandwidth weren't measured, on hardware or offline.
 
 The build differs from v1.3 only at the four sites and in the new code, and v1.3's routines are unchanged apart from TICK's instruction pair. The longest blank run is 90 blocks.
 
@@ -239,7 +239,7 @@ The diagnostic doesn't help with a first install either, because custom code has
 - **Scatter v1**: offline checks ([TEST14_FIX106.json](../checks/TEST14_FIX106.json)). It installs and runs on hardware (see above), and was played on the test unit on 2026-10-17 with no fault found. A pattern that seemed to roll on its own turned out to be set to a length of 1. The full TEST12 listening checklist hasn't been repeated.
 - **Scatter v1.2**: offline checks ([SCATTER_V1_2.json](../checks/SCATTER_V1_2.json)). Installed and played on the test unit on 2026-10-17: the step lights follow the played step, Scatter stays on through Pattern Write while the step buttons program normally there, and Scatter's controls work again back in Pattern Play.
 - **Scatter v1.3**: offline checks ([SCATTER_V1_3.json](../checks/SCATTER_V1_3.json)). Installed from the public updater as the test build and played on the test unit on 2026-10-17: the user reported that mute and roll mode, the roll rates, the loop length per voice and the mode's step lights all work.
-- **MIDI extra-hit test build**: offline checks ([SCATTER_MIDI_TEST.json](../checks/SCATTER_MIDI_TEST.json)) and a simulated install. Not yet tested on hardware.
+- **MIDI extra-hit test build**: offline checks ([SCATTER_MIDI_TEST.json](../checks/SCATTER_MIDI_TEST.json)) and a simulated install. Installed from a local copy of the updater on its branch and played on the test unit on 2026-10-18: the user reported that it works.
 - **Updater, simulated**: [UPLOADER_SIMULATOR.json](../checks/UPLOADER_SIMULATOR.json) and [AUTOMATIC_WORKFLOW.json](../checks/AUTOMATIC_WORKFLOW.json).
 - **Other offline checks**: `checks/RD6_SCATTER_TEST12_*.json`.
 
@@ -247,6 +247,6 @@ The diagnostic doesn't help with a first install either, because custom code has
 
 - External clock, chaining, worst-case interrupt timing and RAM liveness are unmeasured.
 - An earlier fast-tempo Ratchet glitch is unresolved.
-- In Scatter v1.3, extra Roll and Ratchet hits and the 1/32 roll's second hit are analog-only. The timer interrupt that plays them can preempt the stock MIDI output queue mid-update, so extra-hit MIDI stays disabled (`source/rd6_stock_bridge_1_0_5.ll`). The MIDI extra-hit test build serializes the queue and sends them; it hasn't been tested on hardware.
+- In Scatter v1.3, extra Roll and Ratchet hits and the 1/32 roll's second hit are analog-only. The timer interrupt that plays them can preempt the stock MIDI output queue mid-update, so extra-hit MIDI stays disabled (`source/rd6_stock_bridge_1_0_5.ll`). The MIDI extra-hit test build serializes the queue and sends them; so far it has been tested on one RD-6.
 - There is no flash readback, and recovery after an interrupted flash isn't guaranteed: restoring needs a working update mode.
 - Offline checks run selected code paths; there is no full MCU emulation.

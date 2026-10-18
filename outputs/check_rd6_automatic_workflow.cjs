@@ -134,7 +134,7 @@ function fakeMidi(ports) {
     await start(page);
     check('MIDI test build installs with 378 ACKs and its exact pinned image stream', await page.evaluate(() => S.image.hash) === MIDI_TEST &&
       await page.evaluate(() => S.events.filter(e => e.event === 'firmware_ack').length === 378 && S.events.some(e => e.event === 'sim_stream_check' && e.byte_exact)) &&
-      /^Done! Scatter v1\.3 MIDI extra-hit \(test build\) is installed/.test(await txt(page, '#xferStatus')) && /Hardware test needed/.test(await txt(page, '#xferStatus')));
+      /^Done! Scatter v1\.3 MIDI extra-hit \(test build\) is installed/.test(await txt(page, '#xferStatus')) && /watch MIDI out/.test(await txt(page, '#xferStatus')));
     const midiFile = await download(page, '#saveScatter');
     check('MIDI test .syx saved from Advanced has its pinned checksum', sha(midiFile.bytes) === MIDI_TEST && midiFile.name === 'RD6_Scatter_v1.3_MIDI_test.syx');
     await page.close();

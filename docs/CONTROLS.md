@@ -125,7 +125,7 @@ Within each group of four values, the first value is depth 1 and the last is dep
 
 ## MIDI extra-hit test build
 
-The updater has an unticked option, **MIDI extra-hit test build**. It's Scatter v1.3 with one change: the extra hits that normally come only from the audio outputs are also sent on MIDI out, the same way the RD-6 sends its regular hits. That covers Roll (straight and triplet, also when it's latched), the extra Ratchet hits, and the second hit of a 1/32 roll in mute and roll mode. The buttons and the timing are the same as in v1.3. **This build hasn't been tested on hardware yet.**
+The updater has an unticked option, **MIDI extra-hit test build**. It's Scatter v1.3 with one change: the extra hits that normally come only from the audio outputs are also sent on MIDI out, the same way the RD-6 sends its regular hits. That covers Roll (straight and triplet, also when it's latched), the extra Ratchet hits, and the second hit of a 1/32 roll in mute and roll mode. The buttons and the timing are the same as in v1.3. So far it's been tested on one RD-6.
 
 - The notes go out on the RD-6's MIDI transmit channel, over USB and the MIDI OUT socket: BD 36, SD 40, LT 45, HT 50, CY 51, CP 39, OH 46, CH 42. Velocity is 80, or 112 with accent. Each note gets its note-off shortly after, like the RD-6's regular notes.
 - Muted voices send nothing, and a voice with its own length sends what it plays.

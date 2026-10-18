@@ -115,6 +115,6 @@
     "Off drain: 0x08005534 ldr r1, [r4, #0x18] becomes ldr r1, [r4, #0x1C], so note-offs stop at the note-on cursor."
   ],
   "scope": "Offline: byte diff against v1.3, every branch, adr and table against the listing with capstone, mask recoverability. source/rd6_thumb_machine.py runs the actual bytes with PRIMASK modelled; interrupts are taken only while PRIMASK is clear, with context saved and a 32-byte frame reserved. Not Cortex-M cycle timing, peripheral deadlines, stack use on hardware or MIDI OUT bandwidth. Simulated installs in the updater.",
-  "hardware_tested": false,
-  "hardware_test": "Not yet tested on hardware. Checklist: docs/CONTROLS.md#testing-it."
+  "hardware_tested": true,
+  "hardware_test": "Confirmed on the test unit on 2026-10-18: installed from a local copy of the updater on this branch; the user reported that it works. Checklist: docs/CONTROLS.md#testing-it."
 }

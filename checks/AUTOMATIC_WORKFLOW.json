@@ -16,7 +16,7 @@
     "A listed RD-6 port that never answers: Connect offers Reconnect; after the reload a still-silent RD-6 gets next steps, with the user's choices (action and MIDI test build) kept",
     "Scatter v1.3 .syx file saved from Advanced matches its pinned checksum",
     "Scatter v1.3 one-click install: 378 ACKs, the exact pinned image stream, and a success message on how to start mute and roll mode",
-    "MIDI extra-hit test build, chosen with its checkbox: the .syx button names it, 378 ACKs, its exact pinned image stream, a success message asking for the hardware test, and its own .syx from Advanced with its pinned checksum",
+    "MIDI extra-hit test build, chosen with its checkbox: the .syx button names it, 378 ACKs, its exact pinned image stream, a success message on how to try it, and its own .syx from Advanced with its pinned checksum",
     "A modified MIDI test patch is refused by its pinned hash before anything is sent",
     "Unknown version: backup limit explained, install waits for an acknowledgement",
     "Silent-08 bootloader recognised as update mode; nothing to back up; 1.0.6 restored without repeating mode entry",

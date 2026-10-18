@@ -138,7 +138,7 @@ footer { color: var(--muted); font-size: 14px; margin-top: 18px; }
 
     <div id="installOptions">
       <p class="hint">Scatter is built on Behringer firmware 1.0.5, so afterwards your RD-6 reports version 1.0.5. That's expected. Your patterns and settings are stored separately and installing doesn't change them, but saving them in step 2 first is a good idea.</p>
-      <label class="inline"><input type="checkbox" id="useMidiTest"><span>Install the <strong>MIDI extra-hit test build</strong> instead: Scatter v1.3, with the Roll, Ratchet and 1/32 roll repeats also sent on MIDI out. Not yet tested on hardware.</span></label>
+      <label class="inline"><input type="checkbox" id="useMidiTest"><span>Install the <strong>MIDI extra-hit test build</strong> instead: Scatter v1.3, with the Roll, Ratchet and 1/32 roll repeats also sent on MIDI out. Tested on one RD-6 so far.</span></label>
       <label class="inline"><input type="checkbox" id="understand"><span>I understand Scatter is unofficial, experimental firmware.</span></label>
     </div>
 
@@ -316,7 +316,7 @@ const SCATTER = { id: 'SCATTER_V1_3', label: 'Scatter v1.3', patch: 'scatter-v1.
   tryIt: 'Try it: start a pattern in PATTERN PLAY, hold FUNCTION and press TAP, press step button 1 (Roll), then hold TAP. For mute and roll mode, double-click FUNCTION.' };
 // MIDI extra-hit test build: v1.3 plus Roll, Ratchet and 1/32 roll repeats on MIDI out (source/build_midi_extra.py).
 const MIDI_TEST = { id: 'SCATTER_V1_3_MIDI_TEST', label: 'Scatter v1.3 MIDI extra-hit (test build)', patch: 'scatter-v1.3-midi-test.patch.json', sha: '75f9f392a228ac50779d2dd0107db2d716a6fa95e8ea5d5d9aab7fe9ae70edc2', file: 'RD6_Scatter_v1.3_MIDI_test.syx',
-  tryIt: 'Hardware test needed: watch MIDI out with a MIDI monitor while you play Ratchet, straight and triplet Roll, latched Roll and 1/32 rolls in mute and roll mode. The test checklist is in docs/CONTROLS.md.' };
+  tryIt: 'Try it: play Roll or Ratchet, or a 1/32 roll in mute and roll mode, and watch MIDI out with a MIDI monitor or another drum machine. The test checklist is in docs/CONTROLS.md.' };
 const chosenBuild = () => ($('useMidiTest').checked ? MIDI_TEST : SCATTER);
 const BACKUP_FORMAT = 'rd6-firmware-file-backup-v1';
 const BACKUP_KINDS = ['official-download-not-device-dump', 'user-supplied-file-not-device-dump'];
