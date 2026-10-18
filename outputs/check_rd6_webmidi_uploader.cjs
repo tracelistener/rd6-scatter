@@ -16,7 +16,7 @@ const STOCK106 = path.join(ROOT, 'firmware/RD-6_V1.0.6.syx');
 for (const f of [STOCK105, STOCK106]) if (!fs.existsSync(f)) throw new Error('Missing mirrored official firmware file ' + f);
 const SHA105 = '29fc1fb89a951a864e294764d2fe8bba4ad1ce890f9c308f09944749321571eb';
 const SHA106 = '4446914dffce8152dc7f7c0065de52d266f062a6499a22a8fef36b221982cfc3';
-const SCATTER_V1_2 = '8bbc359ebdf78357f7233556bf2843d53b34e8a1a52a4f1c0b8b83a9db9d41dc';
+const SCATTER_V1_3 = 'ff0bb9d18ae7d926f780a65dddda53cb925cb544d3c46a2d5ae1472ff7848fc5';
 const BLOCK120 = 'f0 00 20 32 00 01 0d 00 0b 00 78 00 00 00';
 
 function serve() {
@@ -70,7 +70,7 @@ const jsonFile = (name, doc) => ({ name, mimeType: 'application/json', buffer: B
   const check = (name, pass, detail = '') => { results.push({ name, pass, detail }); console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${detail ? '  — ' + detail : ''}`); };
 
   try {
-    // 1. RD-6 on official 1.0.5: backup, every gate, then a full Scatter v1.2 install.
+    // 1. RD-6 on official 1.0.5: backup, every gate, then a full Scatter v1.3 install.
     let page = await fresh(browser, base);
     check('install blocked before connecting', await page.isDisabled('#start') && /Connect your RD-6 first/.test(await text(page, '#startHint')));
     await connect(page);
@@ -95,8 +95,8 @@ const jsonFile = (name, doc) => ({ name, mimeType: 'application/json', buffer: B
       ev.some(e => e.event === 'port_absent') && ev.some(e => e.event === 'port_present_again') && ev.some(e => e.event === 'entry_acks' && e.count === 2));
     check('378 firmware ACKs then version reply 1.0.5', ev.filter(e => e.event === 'firmware_ack').length === 378 &&
       ev.some(e => e.event === 'application_version_reply_after_transfer' && e.version === '1.0.5'));
-    check('simulated device saw the exact Scatter v1.2 stream', await page.evaluate(() => S.image.hash) === SCATTER_V1_2 && ev.some(e => e.event === 'sim_stream_check' && e.byte_exact === true));
-    check('status reports done', /^Done! Scatter v1\.2 is installed/.test(await text(page, '#xferStatus')));
+    check('simulated device saw the exact Scatter v1.3 stream', await page.evaluate(() => S.image.hash) === SCATTER_V1_3 && ev.some(e => e.event === 'sim_stream_check' && e.byte_exact === true));
+    check('status reports done', /^Done! Scatter v1\.3 is installed/.test(await text(page, '#xferStatus')));
     check('afterwards the RD-6 is known to run Scatter, with nothing to back up',
       /running Scatter/.test(await text(page, '#devStatus')) && /nothing to back up/.test(await text(page, '#backupStatus')) && await page.isHidden('#ask105'));
 
@@ -126,8 +126,8 @@ const jsonFile = (name, doc) => ({ name, mimeType: 'application/json', buffer: B
     await saveBackup(page);
     await page.check('#backupSaved');
     await start(page);
-    check('Scatter v1.2 reinstalls from 1.0.6 and verifies 1.0.5', await page.evaluate(() => Sim.version === '1.0.5') &&
-      await page.evaluate(() => S.image.hash) === SCATTER_V1_2 && /^Done!/.test(await text(page, '#xferStatus')));
+    check('Scatter v1.3 reinstalls from 1.0.6 and verifies 1.0.5', await page.evaluate(() => Sim.version === '1.0.5') &&
+      await page.evaluate(() => S.image.hash) === SCATTER_V1_3 && /^Done!/.test(await text(page, '#xferStatus')));
 
     // 3. Older restore files and raw .syx files are accepted; damaged files are refused.
     await page.check('input[name=action][value=restore]');

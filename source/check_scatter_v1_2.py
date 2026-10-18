@@ -90,7 +90,7 @@ def direction_kept(image, new, mode, playing):
 def main():
     stock = (HERE / 'firmware/RD-6_V1.0.5.syx').read_bytes()
     v1 = decode_syx(apply(stock, json.loads((HERE / 'source/scatter-v1.patch.json').read_text())))
-    syx = apply(stock, json.loads((HERE / 'outputs/scatter-v1.2.patch.json').read_text()))
+    syx = apply(stock, json.loads((HERE / 'source/scatter-v1.2.patch.json').read_text()))
     v12 = decode_syx(syx)
     allowed = set()
     for site, _, new, cave, body in CHANGES:

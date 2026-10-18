@@ -1,4 +1,4 @@
-"""Offline checks for the Scatter v1.3 test build (source/mute_roll.py).
+"""Offline checks for Scatter v1.3 (source/mute_roll.py).
 
 1. Bytes: it differs from Scatter v1.2 only at the six listed sites and in the five
    new routines, every branch matches the listing, the header checksum is right, and
@@ -497,12 +497,12 @@ def check_bytes(v12, v13):
 def main():
     rng = random.Random(1)
     stock = (HERE / 'firmware/RD-6_V1.0.5.syx').read_bytes()
-    v12_syx = apply(stock, json.loads((HERE / 'outputs/scatter-v1.2.patch.json').read_text()))
-    v13_syx = apply(stock, json.loads((HERE / 'outputs/scatter-v1.3-test.patch.json').read_text()))
+    v12_syx = apply(stock, json.loads((HERE / 'source/scatter-v1.2.patch.json').read_text()))
+    v13_syx = apply(stock, json.loads((HERE / 'outputs/scatter-v1.3.patch.json').read_text()))
     v12, v13 = bytes(decode(v12_syx, 100)[3]), bytes(decode(v13_syx)[3])
     changed, run = check_bytes(v12, v13)
     result = {
-        'build': 'SCATTER_V1_3_TEST',
+        'build': 'SCATTER_V1_3',
         'syx_sha256': hashlib.sha256(v13_syx).hexdigest(),
         'image_sha256': hashlib.sha256(v13).hexdigest(),
         'bytes_changed_from_v1_2': changed,
@@ -518,7 +518,7 @@ def main():
     check_mid_hit(v13)
     check_tick_state(v13)
     check_panel_gestures(v13)
-    result['status'] = 'passed_scatter_v1_3_test'
+    result['status'] = 'passed_scatter_v1_3'
     print(json.dumps(result, indent=2))
 
 

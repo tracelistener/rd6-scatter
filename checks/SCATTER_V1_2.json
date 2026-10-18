@@ -10,7 +10,7 @@
   "mode_cases": 84,
   "build": "SCATTER_V1_2",
   "date": "2026-10-17",
-  "patch": "outputs/scatter-v1.2.patch.json",
+  "patch": "source/scatter-v1.2.patch.json",
   "changes": [
     "Step lights follow the played step: BL at 0x080064EA (stock ldrb.w r2, [r8, #8]) to a 60-byte routine at 0x0800CD90 that returns the step from the direction snapshot at 0x20002070 when it is valid for the current clock step and pattern length, else the clock step (source/step_lights.py).",
     "Pattern Write keeps Scatter: the panel tick no longer cancels the layer in mode 3 while playing, and handles no Scatter buttons there; the direction check keeps the direction in modes 2 and 3 (source/mode_keep.py). Every other mode, playing, busy and START/STOP case decides exactly as v1."
