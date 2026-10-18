@@ -34,20 +34,22 @@ Close SynthTribe and any other music software before you start.
 5. Choose **Install Scatter**, tick the box to confirm you understand Scatter is experimental, then click **Install Scatter**.
 6. Wait until the updater says **Done**. It usually takes under a minute. While it works, keep the tab open and in front, and don't unplug the RD-6. If the updater says Chrome lost its connection to the RD-6, click **Reconnect** and carry on.
 
-## About Scatter v1.2
+## About Scatter v1.3
 
-Scatter v1.2 is built on Behringer's firmware **1.0.5** and includes the bug fix from Behringer's newest firmware, **1.0.6**: the RD-6 keeps the pattern number you picked when you change pattern group during playback ([Behringer's release notes](https://mediadl.musictribe.com/download/software/behringer/RD6/Release-Notes_BE_RD-6_v1-0-6_Rev.1.pdf)).
+Scatter v1.3 is built on Behringer's firmware **1.0.5** and includes the bug fix from Behringer's newest firmware, **1.0.6**: the RD-6 keeps the pattern number you picked when you change pattern group during playback ([Behringer's release notes](https://mediadl.musictribe.com/download/software/behringer/RD6/Release-Notes_BE_RD-6_v1-0-6_Rev.1.pdf)).
 
 After you install it, your RD-6 reports firmware **1.0.5**. That's expected.
 
-New since Scatter v1:
+New in v1.3:
+
+- **Mute and roll mode.** While a pattern plays, double-click FUNCTION. Steps 1–8 mute the voices, steps 9–16 add rolls, and you can give each voice its own loop length ([how it works](docs/CONTROLS.md#mute-and-roll-mode)).
+
+From v1.2:
 
 - **The step lights follow the playback direction.** In Reverse, Random or Ping-pong, the running light shows the step that's actually playing.
 - **Scatter stays on in Pattern Write.** The direction you chose keeps playing while you edit, and the buttons do their normal Write jobs. Scatter's controls work again when you go back to Pattern Play.
 
-Already have Scatter v1? Install again the same way to get v1.2.
-
-**Test build, Scatter v1.3:** adds a mute and roll mode (double-click FUNCTION) and a loop length for each voice ([how it works](docs/CONTROLS.md#mute-and-roll-mode-v13-test-build)). To try it, tick **Install the v1.3 test build instead** before installing. It hasn't been tested on a real RD-6 yet.
+Already have an older Scatter? Install again the same way to get v1.3.
 
 ## Go back to the official firmware
 
@@ -92,6 +94,7 @@ Start a pattern in PATTERN PLAY mode, then:
 - A **direction** stays on until you choose another one or leave Scatter, and the step lights follow it. Reverse starts at the next bar.
 - Switching to **Pattern Write** keeps Scatter on, but its buttons rest until you go back to Pattern Play.
 - To **leave Scatter**, hold FUNCTION and press TAP again, or press STOP. Either way the direction goes back to Forward, and STOP also turns the effect off.
+- **Mute and roll mode:** double-click FUNCTION while a pattern plays. Steps 1–8 mute or unmute the voices and steps 9–16 switch their rolls on or off. Hold TAP and press step 9–14 to pick the roll rate. Hold a voice's mute button and press a step to give that voice its own loop length. Double-click FUNCTION again to leave.
 - Roll and the extra Ratchet hits come only from the RD-6's audio outputs, not over MIDI.
 - Scatter doesn't save its settings. They reset when you switch the RD-6 off.
 

@@ -51,9 +51,9 @@ If you switch to Pattern Write while a pattern plays, Scatter stays on and the d
 
 (The older Scatter v1 turned Scatter off and set the direction back to Forward when you switched to Pattern Write.)
 
-## Mute and roll mode (v1.3 test build)
+## Mute and roll mode
 
-The v1.3 test build adds a performance mode modelled on the Quicksilver 606's mute and roll mode. It works in **PATTERN PLAY** while a pattern is playing.
+Mute and roll mode is a performance mode modelled on the Quicksilver 606's mute and roll mode. It works in **PATTERN PLAY** while a pattern is playing.
 
 - **Enter or leave:** double-click **FUNCTION**. Press nothing else during either click.
 - **Step lights:** steps 1–8 lit = that voice is playing; steps 9–16 lit = its roll is on.

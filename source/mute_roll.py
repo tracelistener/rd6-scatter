@@ -1,4 +1,4 @@
-"""Scatter v1.3 test build: mute and roll mode, and a loop length for each voice.
+"""Scatter v1.3: mute and roll mode, and a loop length for each voice.
 
 Scatter v1.2 plus a performance mode modelled on the Quicksilver 606's MUTE AND ROLL
 MODE, and a loop length per voice. In Pattern Play, while a pattern plays,

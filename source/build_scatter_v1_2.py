@@ -1,4 +1,4 @@
-"""Build Scatter v1.2, outputs/scatter-v1.2.patch.json: Scatter v1 plus
+"""Build Scatter v1.2, source/scatter-v1.2.patch.json: Scatter v1 plus
 - step lights that follow the step Scatter plays (source/step_lights.py), and
 - Scatter staying on when Pattern Play switches to Pattern Write (source/mode_keep.py).
 
@@ -22,7 +22,7 @@ import step_lights as L
 import mode_keep as M
 BASE = 0x08002800
 FREE_END = 0x0800CE00
-OUT = HERE / 'outputs/scatter-v1.2.patch.json'
+OUT = HERE / 'source/scatter-v1.2.patch.json'
 # (site, original bytes, new bytes, cave, routine)
 CHANGES = [
     (L.SITE, L.SITE_STOCK, L.SITE_BL, L.CAVE, L.BODY),
