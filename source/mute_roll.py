@@ -647,9 +647,9 @@ BRANCHES = {'b', 'bl', 'cbz', 'cbnz'} | {'b' + c for c in ('eq', 'ne', 'hs', 'lo
 def check_branches(name, base, code):
     """Every branch and adr in `code` (SOURCE[name] assembled at `base`) lands where the
     listing says, and the data tables match. Returns a list of mismatches."""
-    from capstone import Cs, CS_ARCH_ARM, CS_MODE_THUMB
+    from capstone import Cs, CS_ARCH_ARM, CS_MODE_THUMB, CS_MODE_MCLASS
     instrs, data = parse(SOURCE[name])
-    md = Cs(CS_ARCH_ARM, CS_MODE_THUMB)
+    md = Cs(CS_ARCH_ARM, CS_MODE_THUMB | CS_MODE_MCLASS)
     decoded = list(md.disasm(code, base, len(instrs)))
     problems = []
     if len(decoded) != len(instrs):

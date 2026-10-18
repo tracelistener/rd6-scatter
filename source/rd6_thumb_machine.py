@@ -17,7 +17,7 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Callable
 
-from capstone import Cs, CS_ARCH_ARM, CS_MODE_THUMB
+from capstone import Cs, CS_ARCH_ARM, CS_MODE_THUMB, CS_MODE_MCLASS
 from capstone import arm_const as A
 
 U32 = 0xFFFFFFFF
@@ -245,7 +245,7 @@ class Program:
     """Instructions decoded linearly per named range, so IT blocks decode in context."""
 
     def __init__(self) -> None:
-        self.disassembler = Cs(CS_ARCH_ARM, CS_MODE_THUMB)
+        self.disassembler = Cs(CS_ARCH_ARM, CS_MODE_THUMB | CS_MODE_MCLASS)
         self.disassembler.detail = True
         self.instructions: dict[int, Decoded] = {}
         self.ranges: list[tuple[int, int, str]] = []
@@ -277,6 +277,7 @@ class Thumb:
         self.regs = [0] * 16
         self.n = self.z = self.c = self.v = None
         self.it: list[int] = []
+        self.primask = 0  # exception admission is modeled by the test harness
         self.intercepts: dict[int, Callable[[Thumb], None]] = {}
         self.observers: dict[int, list[Callable[[Thumb], None]]] = {}
         self.stats: Counter = Counter()
@@ -288,6 +289,8 @@ class Thumb:
         self.n = self.z = self.c = self.v = None
 
     def context(self) -> tuple:
+        # PRIMASK is not exception-stacked: exception return restores registers,
+        # APSR and IT state, while the interrupt mask remains processor state.
         return (list(self.regs), (self.n, self.z, self.c, self.v), list(self.it))
 
     def restore(self, context: tuple) -> None:
@@ -482,6 +485,15 @@ class Thumb:
         pc = instruction.address
         flags = instruction.update_flags
         regs = self.regs
+        if instruction.mnemonic == "mrs" and instruction.op_str.endswith(", primask"):
+            self.set_register(self.plain(instruction, operands[0]), self.primask)
+            return None
+        if instruction.mnemonic == "msr" and instruction.op_str.startswith("primask, "):
+            self.primask = regs[self.plain(instruction, operands[1])] & 1
+            return None
+        if instruction.mnemonic == "cpsid" and instruction.op_str == "i":
+            self.primask = 1
+            return None
         if ident in (A.ARM_INS_ADD, A.ARM_INS_SUB, A.ARM_INS_RSB):
             destination = self.plain(instruction, operands[0])
             if len(operands) == 2:

@@ -1,0 +1,120 @@
+{
+  "status": "passed_scatter_v1_3_midi_test",
+  "build": "SCATTER_V1_3_MIDI_TEST",
+  "date": "2026-10-18",
+  "patch": "outputs/scatter-v1.3-midi-test.patch.json",
+  "base": "Scatter v1.3 (ff0bb9d18ae7d926f780a65dddda53cb925cb544d3c46a2d5ae1472ff7848fc5)",
+  "syx_sha256": "75f9f392a228ac50779d2dd0107db2d716a6fa95e8ea5d5d9aab7fe9ae70edc2",
+  "image_sha256": "ac0fa39bce04bae0b1279c640df03871d6990c1fb589ca1bbf4d1056dc6f5f9f",
+  "bytes_changed_from_v1_3": 238,
+  "mask_run_blocks": 90,
+  "firmware_audit": {
+    "TIMER13_priority": "0x50 (preempt 1, sub 1)",
+    "TIMER14_priority": "0x00 (preempt 0, sub 0)",
+    "producer_roots": [
+      "0x8007628",
+      "0x8007524",
+      "0x80075ec",
+      "0x80093ac"
+    ],
+    "consumer_root": "0x080093ac",
+    "countdown_root": "0x080075ec",
+    "cursor_store_sites": [
+      [
+        "0x8002de8",
+        "0x18"
+      ],
+      [
+        "0x8005548",
+        "0x20"
+      ],
+      [
+        "0x800557c",
+        "0x1c"
+      ]
+    ]
+  },
+  "capacity_cases": 20000,
+  "max_extra_enqueue_masked_instructions": 36,
+  "preemption_cases": 4265,
+  "max_stock_enqueue_masked_instructions": 12,
+  "wire_messages": 18,
+  "consumer_preemption_cases": 160,
+  "filter_cases": 1024,
+  "v1_3_filter_cases": 400,
+  "scheduler_cases": 40,
+  "scheduler_extra_hit_ticks": {
+    "mode_0_depth_1_latch_0": [],
+    "mode_1_depth_1_latch_0": [],
+    "mode_2_depth_1_latch_0": [],
+    "mode_3_depth_1_latch_0": [],
+    "mode_4_depth_1_latch_0": [
+      240
+    ],
+    "mode_4_depth_4_latch_0": [
+      120,
+      240,
+      360
+    ],
+    "mode_5_depth_4_latch_0": [
+      240,
+      480
+    ],
+    "mode_6_depth_4_latch_0": [
+      160,
+      320,
+      480
+    ],
+    "mode_5_depth_4_latch_1": [
+      240,
+      480
+    ],
+    "mode_6_depth_4_latch_1": [
+      160,
+      320,
+      480
+    ]
+  },
+  "dispatcher_cases_unchanged": 600,
+  "countdown_cases_unchanged": 1428,
+  "countdown_cases_with_a_1_32_hit_queued": 227,
+  "mid_end_to_end": "passed",
+  "mutations_caught_by": {
+    "MID drops the accent": [
+      "unchanged_countdown",
+      "mid_end_to_end",
+      "preempt"
+    ],
+    "MID queues nothing": [
+      "unchanged_countdown",
+      "mid_end_to_end",
+      "preempt"
+    ],
+    "no 1/32 hook": [
+      "unchanged_countdown",
+      "mid_end_to_end",
+      "preempt"
+    ],
+    "STOCK does not mask interrupts": [
+      "preempt"
+    ],
+    "off drain stops at the write cursor": [
+      "consumer_preemption"
+    ]
+  },
+  "browser": {
+    "check_rd6_webmidi_uploader.cjs": "56/56",
+    "check_rd6_automatic_workflow.cjs": "31/31",
+    "environment": "Headless Chrome 155 (Playwright 1.62.1), simulated RD-6 only"
+  },
+  "changes": [
+    "Queue entry: 0x08002DD4 (two literal loads) becomes b.w to STOCK at 0x0800D200 (32 bytes), which saves PRIMASK, masks interrupts, runs the stock enqueue body at 0x08002DD8 and restores the mask, so every producer publishes one byte at a time.",
+    "SAFE at 0x0800D220 (60 bytes): holds the mask across a check of both reader cursors and the enqueue; an extra note is dropped when it would leave 8 or fewer free slots before either reader.",
+    "Scatter's repeats: 0x0800B560 (start of rd6_analog_only_hits, after v1.3's filter) becomes b.w to FILTER at 0x0800D25C (72 bytes), which queues the hit mask's notes in the dispatcher's order and accent encoding and resumes the filter at 0x0800B564.",
+    "1/32 rolls: 0x0800CF9C in v1.3's TICK (movs r0, #21; str r0, [r5]) becomes b.w to MID at 0x0800D2A4 (78 bytes), which queues the notes of the pins TICK raised with the arming step's accent, then resumes TICK at 0x0800CFA0.",
+    "Off drain: 0x08005534 ldr r1, [r4, #0x18] becomes ldr r1, [r4, #0x1C], so note-offs stop at the note-on cursor."
+  ],
+  "scope": "Offline: byte diff against v1.3, every branch, adr and table against the listing with capstone, mask recoverability. source/rd6_thumb_machine.py runs the actual bytes with PRIMASK modelled; interrupts are taken only while PRIMASK is clear, with context saved and a 32-byte frame reserved. Not Cortex-M cycle timing, peripheral deadlines, stack use on hardware or MIDI OUT bandwidth. Simulated installs in the updater.",
+  "hardware_tested": false,
+  "hardware_test": "Not yet tested on hardware. Checklist: docs/CONTROLS.md#testing-it."
+}

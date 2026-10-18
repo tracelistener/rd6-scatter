@@ -95,7 +95,7 @@ Start a pattern in PATTERN PLAY mode, then:
 - Switching to **Pattern Write** keeps Scatter on, but its buttons rest until you go back to Pattern Play.
 - To **leave Scatter**, hold FUNCTION and press TAP again, or press STOP. Either way the direction goes back to Forward, and STOP also turns the effect off.
 - **Mute and roll mode:** double-click FUNCTION while a pattern plays. Steps 1–8 mute or unmute the voices and steps 9–16 switch their rolls on or off. Hold TAP and press step 9–14 to pick the roll rate. Hold a voice's mute button and press a step to give that voice its own loop length. Double-click FUNCTION again to leave.
-- Roll and the extra Ratchet hits come only from the RD-6's audio outputs, not over MIDI.
+- Roll and the extra Ratchet hits come only from the RD-6's audio outputs, not over MIDI. The updater also has a [MIDI extra-hit test build](docs/CONTROLS.md#midi-extra-hit-test-build) that sends them on MIDI out too. It hasn't been tested on hardware yet.
 - Scatter doesn't save its settings. They reset when you switch the RD-6 off.
 
 Shortcuts, depth details and MIDI control: [Scatter controls](docs/CONTROLS.md).
