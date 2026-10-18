@@ -10,6 +10,7 @@ const { chromium } = require('playwright');
 const ROOT = path.resolve(__dirname, '..');
 const sha = b => crypto.createHash('sha256').update(b).digest('hex');
 const SHA106 = '4446914dffce8152dc7f7c0065de52d266f062a6499a22a8fef36b221982cfc3';
+const V13 = 'ff0bb9d18ae7d926f780a65dddda53cb925cb544d3c46a2d5ae1472ff7848fc5';
 const SCATTER_V1_2 = '8bbc359ebdf78357f7233556bf2843d53b34e8a1a52a4f1c0b8b83a9db9d41dc';
 let checks = 0;
 function check(name, pass) { if (!pass) throw new Error('FAIL ' + name); console.log('PASS ' + name); checks++; }
@@ -69,7 +70,8 @@ function fakeMidi(ports) {
     let page = await open([{ name: 'Other Synth' }, { name: 'RHYTHM DESIGNER RD-6 MIDI 1', version: '1.0.6' }]);
     check('no MIDI access requested before Connect', await page.evaluate(() => window.__midiRequests === 0));
     check('install blocked before connecting', await page.isDisabled('#start') && /Connect your RD-6 first/.test(await txt(page, '#startHint')));
-    check('one Scatter build is offered, with no build to choose', await page.$('input[name=build]') === null && await page.$('#useTestBuild') === null);
+    check('Scatter v1.2 is the default; the v1.3 test build is an unticked option', await page.$('input[name=build]') === null && await page.$('#useTestBuild') === null &&
+      await page.isVisible('#useV13') && !(await page.isChecked('#useV13')));
     await page.click('#connect'); await idle(page);
     check('port found automatically and official 1.0.6 identified', await page.inputValue('#portName') === 'RHYTHM DESIGNER RD-6 MIDI 1' &&
       /1\.0\.6, Behringer's latest/.test(await txt(page, '#devStatus')) && await page.evaluate(() => window.__midiRequests === 1));
@@ -122,6 +124,15 @@ function fakeMidi(ports) {
       /^Done! Scatter v1\.2 is installed/.test(await txt(page, '#xferStatus')));
     const t14 = await download(page, '#saveScatter');
     check('Scatter v1.2 .syx saved from Advanced has the pinned checksum', sha(t14.bytes) === SCATTER_V1_2 && t14.name === 'RD6_Scatter_v1.2.syx');
+    await page.close();
+
+    // C2. The v1.3 test build, chosen with its checkbox.
+    page = await simPage(() => { Sim.version = '1.0.6'; });
+    await download(page, '#saveBackup'); await page.check('#backupSaved'); await page.check('#useV13'); await page.check('#understand');
+    await start(page);
+    check('v1.3 test build installs with 378 ACKs and its exact pinned image stream', await page.evaluate(() => S.image.hash) === V13 &&
+      await page.evaluate(() => S.events.filter(e => e.event === 'firmware_ack').length === 378 && S.events.some(e => e.event === 'sim_stream_check' && e.byte_exact)) &&
+      /^Done! Scatter v1\.3 \(test build\) is installed/.test(await txt(page, '#xferStatus')) && /double-click FUNCTION/.test(await txt(page, '#xferStatus')));
     await page.close();
 
     // D. A version this page has no copy of.
