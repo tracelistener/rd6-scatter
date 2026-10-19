@@ -13,7 +13,7 @@
   "feature_steps": 5760,
   "build": "SCATTER_V1_3",
   "date": "2026-10-17",
-  "patch": "outputs/scatter-v1.3.patch.json",
+  "patch": "source/scatter-v1.3.patch.json",
   "changes": [
     "Steps: Scatter's step hook tail at 0x0800BBD4 (ldrh r1, [r3, #4] and half of ldr.w r8) becomes b.w to a 310-byte routine at 0x0800CE00 that works out each row's hit (following the pattern, or its own length from steps since Start), adds rolls, applies mutes and resumes the stock dispatcher at 0x08006B32 with a one-step stand-in pattern.",
     "1/32 rolls: b.w at 0x08006E0C in the stock trigger countdown (ldr r0, [r5]; cmp r0, #0) to a 112-byte routine at 0x0800CF38 that counts TIMER14 ticks, ends the mode when playback stops or leaves Pattern Play, and fires the armed second hit with a step's 16-tick trigger.",

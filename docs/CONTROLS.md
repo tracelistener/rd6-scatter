@@ -35,7 +35,7 @@ Scatter works in **PATTERN PLAY** mode while a pattern is playing. You choose on
 - **Slice** jumps around, repeats and reverses parts of the pattern. Each depth is a different rhythmic variation.
 - **Cut** mutes hits in rhythmic patterns. Sounds that are already ringing still decay naturally. Each depth is a different rhythmic variation.
 
-Roll and the extra Ratchet hits come only from the RD-6's audio outputs. They aren't sent over MIDI, except in the [MIDI extra-hit test build](#midi-extra-hit-test-build).
+Roll and the extra Ratchet hits play on [MIDI out](#midi-out) as well as the audio outputs.
 
 ## Directions
 
@@ -48,6 +48,8 @@ Roll and the extra Ratchet hits come only from the RD-6's audio outputs. They ar
 ## Pattern Write
 
 If you switch to Pattern Write while a pattern plays, Scatter stays on and the direction keeps steering playback. In Write mode Scatter's controls are switched off, so the step buttons, TAP and PATTERN GROUP work as normal. Switch back to Pattern Play to use Scatter's controls again. STOP still turns Scatter off.
+
+If the voice you select has its [own length](#length-per-voice), the running light goes round that voice's own loop while the pattern plays, and its steps past the length stay dark, because they don't play. They're still in the pattern, and they light (and play) again when the voice follows the pattern. Other voices look as they always do.
 
 (The older Scatter v1 turned Scatter off and set the direction back to Forward when you switched to Pattern Write.)
 
@@ -79,11 +81,18 @@ Each voice can loop over its own number of steps, so it drifts against the rest 
 
 A voice with its own length starts from its first step when you press Start and always plays forward, whatever Scatter's direction. It's silent on steps that Scatter's effects cut out.
 
+Each pattern keeps its own lengths:
+
+- A length is saved with the pattern that's playing, about half a second after you set it, the same way the RD-6 saves pattern edits. Give it a moment before you switch off.
+- When you change pattern, the new pattern's lengths take over, even after the RD-6 has been off. A pattern you haven't given any lengths plays normally.
+- The lengths are kept in a spare part of each pattern's memory that Behringer's firmware doesn't use, so official firmware ignores them if you go back to it.
+- The updater's patterns and settings backup doesn't include them. Copying a pattern on the RD-6 doesn't copy them, and resetting the patterns to factory defaults doesn't clear them.
+
 ### Good to know
 
-- Stopping, or leaving Pattern Play, ends the mode. Mutes, rolls, the rate and the lengths stay, and keep working in every mode, until you switch the RD-6 off.
+- Stopping, or leaving Pattern Play, ends the mode. Mutes, rolls and the rate stay, and keep working in every mode, until you switch the RD-6 off. The lengths are saved with each pattern and work in every mode too.
 - In the mode, steps, TAP and PATTERN GROUP only do what's listed above: Scatter's own buttons and the RD-6's pattern selection wait until you leave. START/STOP works as usual.
-- MIDI out sends what plays, including mutes, rolls and lengths. The second hit of a 1/32 roll is the exception: it isn't sent over MIDI, except in the [MIDI extra-hit test build](#midi-extra-hit-test-build).
+- MIDI out sends what plays, including mutes, rolls, lengths and the second hit of a 1/32 roll.
 
 ## Shortcuts without turning Scatter on
 
@@ -103,7 +112,7 @@ The effect plays while you keep holding FUNCTION and stops when you let go. With
 
 ## Settings
 
-Scatter doesn't save its settings. After you switch the RD-6 on, Scatter is off, Latch is off and the direction is Forward.
+Scatter doesn't save its settings, apart from each pattern's [voice lengths](#length-per-voice). After you switch the RD-6 on, Scatter is off, Latch is off, the direction is Forward and mute and roll mode has no mutes or rolls.
 
 ## MIDI control
 
@@ -123,20 +132,12 @@ Within each group of four values, the first value is depth 1 and the last is dep
 
 **CC 112** with value 0 asks Scatter for a status report. It's a diagnostic for development; see the [technical notes](TECHNICAL.md#scatter-status-report).
 
-## MIDI extra-hit test build
+## MIDI out
 
-The updater has an unticked option, **MIDI extra-hit test build**. It's Scatter v1.3 with one change: the extra hits that normally come only from the audio outputs are also sent on MIDI out, the same way the RD-6 sends its regular hits. That covers Roll (straight and triplet, also when it's latched), the extra Ratchet hits, and the second hit of a 1/32 roll in mute and roll mode. The buttons and the timing are the same as in v1.3. So far it's been tested on one RD-6.
+Roll (straight and triplet, also when it's latched), the extra Ratchet hits and the second hit of a 1/32 roll in mute and roll mode go out on MIDI, the same way the RD-6 sends its regular hits. So a drum machine played from the RD-6's MIDI out repeats along.
 
 - The notes go out on the RD-6's MIDI transmit channel, over USB and the MIDI OUT socket: BD 36, SD 40, LT 45, HT 50, CY 51, CP 39, OH 46, CH 42. Velocity is 80, or 112 with accent. Each note gets its note-off shortly after, like the RD-6's regular notes.
 - Muted voices send nothing, and a voice with its own length sends what it plays.
-- The RD-6's own clap skips a repeat that would need its accent set-up (an accented repeat, or one just after an accented clap), but MIDI out still sends it. Scatter's other clap protection is unchanged.
+- The RD-6's own clap skips a repeat that would need its accent set-up (an accented repeat, or one just after an accented clap), but MIDI out still sends it.
 - When MIDI out is very busy, an extra note is left out rather than sent late. The audio outputs still play it. Dense chords at fast repeat rates can need more than MIDI can carry.
-- To go back to normal Scatter v1.3, install again without ticking the option.
-
-### Testing it
-
-1. Connect a MIDI monitor to the RD-6's MIDI OUT. Start with a slow, sparse pattern and one voice at a time, and check normal playback first.
-2. Play Ratchet at depths 1–2 (two hits) and 3–4 (four hits), straight and triplet Roll at every depth, and Roll with Latch on after you let go of TAP, each with and without accent. In mute and roll mode, try a 1/32 roll (hold TAP and press 10), with and without a muted voice.
-3. Check that every repeat sends a note-on with the note and velocity above, followed by its note-off. Let go of the effect, turn Latch off and press STOP: the repeats should stop, every note should get its note-off, and normal playback should carry on with no missing or stuck notes. Then try chords and faster tempos. If you use USB MIDI, check it separately.
-4. Connect the Rhythm Wolf or RD-9 instead of the monitor, and set its receive channel and note numbers to match the RD-6. Repeat the tests and listen for the added hits, steady clock, start and stop, and any unexpected flams, gaps, missing hits or hanging notes.
-5. Save the monitor log, and note the tempo, voices, depth, straight or triplet, accent, latch and the receiving device.
+- To play another drum machine, such as an RD-9 or Rhythm Wolf, set its receive channel and note numbers to match the RD-6.

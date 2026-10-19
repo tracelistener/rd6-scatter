@@ -2,7 +2,7 @@
   "status": "passed_scatter_v1_3_midi_test",
   "build": "SCATTER_V1_3_MIDI_TEST",
   "date": "2026-10-18",
-  "patch": "outputs/scatter-v1.3-midi-test.patch.json",
+  "patch": "source/scatter-v1.3-midi-test.patch.json",
   "base": "Scatter v1.3 (ff0bb9d18ae7d926f780a65dddda53cb925cb544d3c46a2d5ae1472ff7848fc5)",
   "syx_sha256": "75f9f392a228ac50779d2dd0107db2d716a6fa95e8ea5d5d9aab7fe9ae70edc2",
   "image_sha256": "ac0fa39bce04bae0b1279c640df03871d6990c1fb589ca1bbf4d1056dc6f5f9f",

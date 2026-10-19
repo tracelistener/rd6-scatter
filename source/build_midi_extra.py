@@ -1,5 +1,5 @@
 """Build the MIDI extra-hit test patch on Scatter v1.3,
-outputs/scatter-v1.3-midi-test.patch.json (source/midi_extra.py).
+source/scatter-v1.3-midi-test.patch.json (source/midi_extra.py), the parent of Scatter v1.4.
 
 Decoding stays in memory; the only file written is the patch, as byte runs on the
 official 1.0.5 SysEx file. The new code takes the block after v1.3's code, from
@@ -14,8 +14,8 @@ from apply_patch import apply
 import midi_extra as M
 import mute_roll as V
 
-OUT = HERE / 'outputs/scatter-v1.3-midi-test.patch.json'
-V13 = HERE / 'outputs/scatter-v1.3.patch.json'
+OUT = HERE / 'source/scatter-v1.3-midi-test.patch.json'
+V13 = HERE / 'source/scatter-v1.3.patch.json'
 
 
 def build(stock):
