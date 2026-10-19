@@ -8,7 +8,7 @@
   "cases": [
     "Install blocked until connected, the 1.0.5 question is answered, the backup is saved and confirmed, and experimental firmware is acknowledged",
     "Backup of an RD-6 reporting 1.0.5 is the exact official 1.0.5 file, labelled as not a device dump",
-    "One-click Scatter v1.3 install: update-mode entry with port absent/present and two ACKs, 378 firmware ACKs, byte-exact stream, version reply 1.0.5",
+    "One-click Scatter v1.4 install: update-mode entry with port absent/present and two ACKs, 378 firmware ACKs, byte-exact stream, version reply 1.0.5",
     "After installing, the RD-6 is known to run Scatter, with nothing to back up",
     "Saved backup restores exact stock 1.0.5 and verifies 1.0.5",
     "Official 1.0.6 restore needs no file and verifies 1.0.6; identity accepts 1.0.6",

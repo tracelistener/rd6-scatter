@@ -498,7 +498,7 @@ def main():
     rng = random.Random(1)
     stock = (HERE / 'firmware/RD-6_V1.0.5.syx').read_bytes()
     v12_syx = apply(stock, json.loads((HERE / 'source/scatter-v1.2.patch.json').read_text()))
-    v13_syx = apply(stock, json.loads((HERE / 'outputs/scatter-v1.3.patch.json').read_text()))
+    v13_syx = apply(stock, json.loads((HERE / 'source/scatter-v1.3.patch.json').read_text()))
     v12, v13 = bytes(decode(v12_syx, 100)[3]), bytes(decode(v13_syx)[3])
     changed, run = check_bytes(v12, v13)
     result = {

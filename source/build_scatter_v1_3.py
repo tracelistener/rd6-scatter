@@ -1,4 +1,4 @@
-"""Build Scatter v1.3, outputs/scatter-v1.3.patch.json: Scatter v1.2
+"""Build Scatter v1.3, source/scatter-v1.3.patch.json: Scatter v1.2
 plus mute and roll mode and a loop length per voice (source/mute_roll.py).
 
 Decoding stays in memory; the only file written is the patch, as byte runs on the
@@ -16,7 +16,7 @@ from build_scatter_v1_2 import frames, unpack, pack, longest_run, le7, patch_doc
 import mute_roll as M
 BASE = 0x08002800
 MIN_RUN = 64
-OUT = HERE / 'outputs/scatter-v1.3.patch.json'
+OUT = HERE / 'source/scatter-v1.3.patch.json'
 
 
 def decode(syx, minimum=MIN_RUN):

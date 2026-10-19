@@ -34,13 +34,19 @@ Close SynthTribe and any other music software before you start.
 5. Choose **Install Scatter**, tick the box to confirm you understand Scatter is experimental, then click **Install Scatter**.
 6. Wait until the updater says **Done**. It usually takes under a minute. While it works, keep the tab open and in front, and don't unplug the RD-6. If the updater says Chrome lost its connection to the RD-6, click **Reconnect** and carry on.
 
-## About Scatter v1.3
+## About Scatter v1.4
 
-Scatter v1.3 is built on Behringer's firmware **1.0.5** and includes the bug fix from Behringer's newest firmware, **1.0.6**: the RD-6 keeps the pattern number you picked when you change pattern group during playback ([Behringer's release notes](https://mediadl.musictribe.com/download/software/behringer/RD6/Release-Notes_BE_RD-6_v1-0-6_Rev.1.pdf)).
+Scatter v1.4 is built on Behringer's firmware **1.0.5** and includes the bug fix from Behringer's newest firmware, **1.0.6**: the RD-6 keeps the pattern number you picked when you change pattern group during playback ([Behringer's release notes](https://mediadl.musictribe.com/download/software/behringer/RD6/Release-Notes_BE_RD-6_v1-0-6_Rev.1.pdf)).
 
 After you install it, your RD-6 reports firmware **1.0.5**. That's expected.
 
-New in v1.3:
+New in v1.4:
+
+- **Repeats on MIDI out.** Roll, the extra Ratchet hits and the second hit of a 1/32 roll are sent on MIDI out too, so a drum machine played from the RD-6's MIDI out repeats along ([details](docs/CONTROLS.md#midi-out)).
+- **Each pattern keeps its voice lengths.** A loop length you give a voice in mute and roll mode is saved with the pattern, so it's still there after you switch the RD-6 off ([details](docs/CONTROLS.md#length-per-voice)).
+- **Pattern Write shows a voice's own loop.** Select a voice with its own length and the running light goes round that voice's loop, with its unused steps dark.
+
+From v1.3:
 
 - **Mute and roll mode.** While a pattern plays, double-click FUNCTION. Steps 1–8 mute the voices, steps 9–16 add rolls, and you can give each voice its own loop length ([how it works](docs/CONTROLS.md#mute-and-roll-mode)).
 
@@ -49,7 +55,7 @@ From v1.2:
 - **The step lights follow the playback direction.** In Reverse, Random or Ping-pong, the running light shows the step that's actually playing.
 - **Scatter stays on in Pattern Write.** The direction you chose keeps playing while you edit, and the buttons do their normal Write jobs. Scatter's controls work again when you go back to Pattern Play.
 
-Already have an older Scatter? Install again the same way to get v1.3.
+Already have an older Scatter? Install again the same way to get v1.4.
 
 ## Go back to the official firmware
 
@@ -95,8 +101,8 @@ Start a pattern in PATTERN PLAY mode, then:
 - Switching to **Pattern Write** keeps Scatter on, but its buttons rest until you go back to Pattern Play.
 - To **leave Scatter**, hold FUNCTION and press TAP again, or press STOP. Either way the direction goes back to Forward, and STOP also turns the effect off.
 - **Mute and roll mode:** double-click FUNCTION while a pattern plays. Steps 1–8 mute or unmute the voices and steps 9–16 switch their rolls on or off. Hold TAP and press step 9–14 to pick the roll rate. Hold a voice's mute button and press a step to give that voice its own loop length. Double-click FUNCTION again to leave.
-- Roll and the extra Ratchet hits come only from the RD-6's audio outputs, not over MIDI. The updater also has a [MIDI extra-hit test build](docs/CONTROLS.md#midi-extra-hit-test-build) that sends them on MIDI out too. So far it's been tested on one RD-6.
-- Scatter doesn't save its settings. They reset when you switch the RD-6 off.
+- Roll and the extra Ratchet hits play on MIDI out as well as the audio outputs.
+- Scatter saves each pattern's voice lengths. Its other settings reset when you switch the RD-6 off.
 
 Shortcuts, depth details and MIDI control: [Scatter controls](docs/CONTROLS.md).
 
@@ -105,6 +111,7 @@ Shortcuts, depth details and MIDI control: [Scatter controls](docs/CONTROLS.md).
 - Scatter has been tested on one RD-6 only.
 - It hasn't been tested with an external MIDI clock or with other devices chained to the RD-6.
 - Ratchet can glitch at very fast tempos. This is known and not fixed yet.
+- The voice lengths aren't part of the updater's patterns and settings backup.
 - The updater can only help while the RD-6 still responds over USB. If an update is interrupted, see [If something goes wrong](docs/BACKUP_RESTORE.md#if-something-goes-wrong).
 
 ## For developers
