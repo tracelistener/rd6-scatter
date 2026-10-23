@@ -76,8 +76,10 @@ The roll rate starts at **off**, so pick one before rolls play: for example, hol
 Each voice can loop over its own number of steps, so it drifts against the rest of the pattern.
 
 1. In mute and roll mode, **hold** the voice's button (1–8). After about half a second the step lights show its length, and the voice keeps its mute setting.
-2. Keep holding it and press the step for the new length: step 5 = 5 steps.
-3. To make the voice follow the pattern again, hold its button and press **TAP**.
+2. Press the step for the new length: step 5 = 5 steps. You can keep holding the voice's button, or let go: the length stays on show for about two seconds, so you can also press the voice's own button (BD's length can be 1, SD's 2 and so on). After each step you press, the lights show the new length for another two seconds, and you can press another step to change it again.
+3. To make the voice follow the pattern again, press **TAP** while its length shows.
+
+If you let go and press nothing, the step lights go back to the mutes and rolls after about two seconds, with the length unchanged.
 
 A voice with its own length starts from its first step when you press Start and always plays forward, whatever Scatter's direction. It's silent on steps that Scatter's effects cut out.
 

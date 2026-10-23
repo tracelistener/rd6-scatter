@@ -1,0 +1,51 @@
+{
+  "status": "passed_scatter_v1_4_1",
+  "build": "SCATTER_V1_4_1",
+  "date": "2026-10-23",
+  "patch": "outputs/scatter-v1.4.1.patch.json",
+  "base": "The MIDI extra-hit step on Scatter v1.3 (75f9f392a228ac50779d2dd0107db2d716a6fa95e8ea5d5d9aab7fe9ae70edc2)",
+  "syx_sha256": "85a82682af14807ef7c6754ec9a828b0588d5483cdae6b377e087e79a4b9fdf2",
+  "image_sha256": "0af3718b11b581d4d2996c5856484035986449987e0aea236c1c4a97049db55e",
+  "bytes_changed_from_midi_step": 651,
+  "mask_run_blocks": 84,
+  "stock_eeprom_audit": {
+    "eeprom_call_sites": 35,
+    "i2c_driver_call_sites": [
+      "0x8003836",
+      "0x8003846"
+    ],
+    "pattern_paths_run": 6
+  },
+  "start_up_cases": 200,
+  "pattern_load_cases": 300,
+  "pattern_loads_with_new_lengths": 228,
+  "panel_cases": 3006,
+  "save_cases": 255,
+  "records_written_and_read_back": 228,
+  "round_trip_sessions": 40,
+  "light_cases": 2000,
+  "light_cases_with_own_length_shown": 315,
+  "bounds": {
+    "apply_instructions": 49,
+    "set_max_masked_instructions": 27
+  },
+  "browser": {
+    "check_rd6_webmidi_uploader.cjs": "56/56",
+    "check_rd6_automatic_workflow.cjs": "28/28",
+    "environment": "Headless Chrome 155 (Playwright 1.62.1), simulated RD-6 only"
+  },
+  "changes": [
+    "Start-up: the last start-up call (0x080093A0, bl 0x08004E9C) goes through BOOT (134 bytes at 0x0800D464), which reads the 32 records at slot * 64 + 22 into CACHE and gives the loaded pattern its lengths.",
+    "Pattern loads: 0x0800366A in the stock load of the playing pattern (bl 0x08005B70, the tidy-up) goes through LOAD (36 bytes at 0x0800D328), which then copies the pattern's lengths from CACHE to v1.3's LEN through APPLY (38 bytes at 0x0800D300).",
+    "Setting a length: v1.3 set_length's store at 0x0800D1C0 (strb.w r1, [r0, #0x2C]) goes through SET (100 bytes at 0x0800D34C), which also stores the length in CACHE for the playing pattern's slot and marks the slot, with interrupts masked.",
+    "Saving: 0x080072F6 in the main loop's save (bl 0x08003760, the song save) goes through SAVE (180 bytes at 0x0800D3B0), which writes one marked slot's 10-byte record, reads it back and retries a failed write at the next 3 saves.",
+    "Pattern Write's lights: 0x080064EA in the light builder (bl 0x0800CD90, v1.2's step routine) goes through SHOW (100 bytes at 0x0800D4EC): while playing in Pattern Write with a voice of its own length selected, the running light shows the step that voice last played and its steps past the length are dark.",
+    "Length view: PANEL's let-go check at 0x0800D08E (add.w r0, fp, r6, lsl #3) goes through LATCH (82 bytes at 0x0800D550), which keeps HELD when the voice's button is let go with its length on show and none chosen, so a step press (the voice's own button included) or TAP sets it, and closes the view after 5 x WINDOW ticks; p_plain's HELD store at 0x0800D11E goes through NEWHOLD (16 bytes at 0x0800D5A4), which starts each hold unchosen and unlatched; SET also marks the hold as chosen and restarts a latched view's time, so the view shows the new length for another 5 x WINDOW ticks.",
+    "RAM: LATCHED, CHOSEN and LATCH_T at 0x20002158-0x2000215F; LOADED, FAILS, DIRTY and CACHE at 0x20002160-0x20002267; v1.2's start-up clear of 0x20002000 grows from 0x158 to 0x268 bytes (0x0800BC58)."
+  ],
+  "scope": "Offline: byte diff against the MIDI step, every branch against the listing, mask recoverability. source/rd6_thumb_machine.py runs the actual bytes, with the stock EEPROM routines replaced by stubs on a model of the 32 KB EEPROM (page-wrapping writes). 14 length-view gestures on v1.3's panel code. The light builder beside the MIDI step in 2,000 random states. Not the I2C timing, a timer's pattern load cutting into a save on hardware, or EEPROM wear. Simulated installs in the updater.",
+  "hardware_tested": true,
+  "hardware_test": "Confirmed on the test unit on 2026-10-23: installed from a local copy of the updater; the user reported that it works, with voices taking their own button's length and the lights showing the new length. v1.4 was confirmed on 2026-10-18.",
+  "latch_gestures": 14,
+  "replaces": "Scatter v1.4 (f3dd4beca4ebc75d7518b2dac19c3944a32dffde7239438044225b0a61ec9048), published 2026-10-19"
+}

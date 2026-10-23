@@ -18,13 +18,13 @@ For people who want to know how Scatter and the updater work, or check them. Pla
 
 ## Builds
 
-**Scatter v1.4** is the only build the updater offers. SysEx SHA-256: `f3dd4beca4ebc75d7518b2dac19c3944a32dffde7239438044225b0a61ec9048`. It was built in five steps:
+**Scatter v1.4.1** is the only build the updater offers. SysEx SHA-256: `85a82682af14807ef7c6754ec9a828b0588d5483cdae6b377e087e79a4b9fdf2`. It was built in five steps:
 
 1. **Scatter v1** (`2cdce8d2ae225feb21a153d69669c3406410893e9d1882ac0c8fb5391468b97b`), developed as `TEST14_FIX106`: the hardware-tested `TEST12_GLITCH` (`9bc1c3a74da476c6694724314d275030a7debb4299c561d06cf56f4e55b540ef`) plus a backport of the 1.0.6 pattern-group fix.
 2. **Scatter v1.2** (`8bbc359ebdf78357f7233556bf2843d53b34e8a1a52a4f1c0b8b83a9db9d41dc`): v1 plus step lights that follow the played step, and Scatter staying on in Pattern Write ([below](#what-v12-changes)).
 3. **Scatter v1.3** (`ff0bb9d18ae7d926f780a65dddda53cb925cb544d3c46a2d5ae1472ff7848fc5`): v1.2 plus mute and roll mode and a loop length per voice ([below](#what-v13-changes)).
 4. **MIDI extra hits** (`75f9f392a228ac50779d2dd0107db2d716a6fa95e8ea5d5d9aab7fe9ae70edc2`): v1.3 plus Scatter's Roll and Ratchet repeats and the 1/32 roll's second hit on MIDI out ([below](#midi-extra-hits)). It was offered as a test build first.
-5. **Scatter v1.4**: that plus each voice's length saved with its pattern and shown in Pattern Write ([below](#saved-lengths-and-the-pattern-write-display)).
+5. **Scatter v1.4.1**: that plus each voice's length saved with its pattern, shown in Pattern Write, and a length view that stays after you let go of the voice's button ([below](#saved-lengths-and-the-pattern-write-display)). It replaces **Scatter v1.4** (`f3dd4beca4ebc75d7518b2dac19c3944a32dffde7239438044225b0a61ec9048`), published on 2026-10-19 without the last part; the updater still recognises v1.4 as an older build.
 
 The v1.3, MIDI step, v1.2, v1 and TEST12 patches stay in `source/` only so that each build can be rebuilt from its parent, and so the checks can confirm exactly what each step changes. The updater still recognises a v1.3, MIDI extra-hit test, v1.2, v1 or TEST12 file as an older Scatter build.
 
@@ -103,7 +103,7 @@ While it was a test build, the browser checks covered its option in the updater:
 
 ### Saved lengths and the Pattern Write display
 
-The second step, which makes Scatter v1.4: `outputs/scatter-v1.4.patch.json`, built from the MIDI extra-hit patch by `source/build_saved_lengths.py` and checked by `source/check_saved_lengths.py` ([results](../checks/SCATTER_V1_4.json)). SysEx SHA-256 `f3dd4beca4ebc75d7518b2dac19c3944a32dffde7239438044225b0a61ec9048`, decoded image `de68d77e7ee9639730257e37be6fb31dceb3217bed651ef0ba6e3c8cf5d5138d`. Installed as the saved lengths test build and played on the test unit on 2026-10-18 ([result](#test-results)).
+The second step, which makes Scatter v1.4.1: `outputs/scatter-v1.4.1.patch.json`, built from the MIDI extra-hit patch by `source/build_saved_lengths.py` and checked by `source/check_saved_lengths.py` ([results](../checks/SCATTER_V1_4_1.json); v1.4: [SCATTER_V1_4.json](../checks/SCATTER_V1_4.json)). SysEx SHA-256 `85a82682af14807ef7c6754ec9a828b0588d5483cdae6b377e087e79a4b9fdf2`, decoded image `0af3718b11b581d4d2996c5856484035986449987e0aea236c1c4a97049db55e`. Confirmed on the test unit on 2026-10-23, and v1.4, without the length view latch, on 2026-10-18 ([results](#test-results)).
 
 **How 1.0.5 keeps patterns.** Traced in the stock firmware and checked by the script:
 
@@ -113,41 +113,42 @@ The second step, which makes Scatter v1.4: `outputs/scatter-v1.4.patch.json`, bu
 - SysTick (`0x080071C4`) asks for a save about every half second. The main loop then runs `0x080072E4`: the playing pattern's save, then the song's. Each write is read back and any byte that differs is written again, because a timer's pattern load can cut into it.
 - The RAM above the stack (`0x20001730`) is free. Scatter uses `0x20002000`–`0x2000207F` and v1.3 `0x20002100`–`0x20002157`.
 
-**What v1.4 changes.** Six routines in `source/saved_lengths.py`, 570 bytes from `0x0800D300`, five 4-byte sites and the start-up clear. Each record is 10 bytes at offset 22 of the pattern's own slot: a tag (`0x53`), the 8 lengths (BD..CH, 0 = follow the pattern, 1–16) and the low byte of the inverted sum of those 9 bytes. Anything else in those bytes means no saved lengths.
+**What it changes.** Eight routines in `source/saved_lengths.py`, 690 bytes from `0x0800D300`, seven 4-byte sites and the start-up clear. Each record is 10 bytes at offset 22 of the pattern's own slot: a tag (`0x53`), the 8 lengths (BD..CH, 0 = follow the pattern, 1–16) and the low byte of the inverted sum of those 9 bytes. Anything else in those bytes means no saved lengths.
 
 - **Start-up.** The last start-up call (`0x080093A0`) goes through BOOT, which reads all 32 records into a RAM copy (CACHE, 8 bytes a slot) and gives the loaded pattern its lengths. Nothing is playing yet, so no timer reads EEPROM meanwhile.
 - **Pattern loads.** In `0x08003630`, the call to the pattern tidy-up (`0x0800366A`) goes through LOAD, which then copies the new pattern's lengths from CACHE to v1.3's LEN. It touches only RAM, so it's safe in the timers, and it does nothing until BOOT has filled CACHE.
-- **Setting a length.** In v1.3's set_length, the LEN store (`0x0800D1C0`) goes through SET, which also stores the length in CACHE for the playing pattern's slot and marks the slot. It masks interrupts across both stores (23 instructions at most), so a pattern load can't come between them, and keeps every register the panel code uses.
+- **Setting a length.** In v1.3's set_length, the LEN store (`0x0800D1C0`) goes through SET, which also stores the length in CACHE for the playing pattern's slot and marks the slot. It masks interrupts across both stores (27 instructions at most), so a pattern load can't come between them, and keeps every register the panel code uses.
 - **Saving.** In `0x080072E4`, the call to the song save (`0x080072F6`) goes through SAVE, which then writes one marked slot's record, reads it back and, if it differs, marks the slot again, at most 3 times in a row. A save that a timer's pattern load cuts into is lost at worst, and retried. One that lands just before a pattern change can make that load wait for the EEPROM, up to the stock driver's 5 ms of retries. The stock pattern saves already carry that risk.
 - **Pattern Write's lights.** The light builder (`0x0800641C`, main loop) shows the selected voice's row of the playing pattern (its address is at `0x20000364`), then inverts the running light from v1.2's step routine. While a pattern plays, that call (`0x080064EA`) goes through SHOW. In Pattern Write, when the selected voice has its own length *L*, SHOW moves the running light to the step the voice last played, (steps since Start − 1) mod *L*, and clears its steps past *L*, which don't play. The scale display (`0x20000230`), the other modes and voices that follow the pattern are unchanged.
-- **RAM.** LOADED, FAILS, DIRTY and CACHE follow v1.3's state, at `0x20002160`–`0x20002267`. v1.2's start-up clear of `0x20002000` grows from `0x158` to `0x268` bytes.
+- **The length view (v1.4.1).** v1.3 sets a voice's length while its button (1–8) is held, so a voice could never take its own button's length, and letting go closed the view. Now LATCH, at PANEL's let-go check (`0x0800D08E`), keeps HELD when the button is let go with the length on show and none chosen during the hold: a step press, the voice's own button included, then sets the length through v1.3's own hit path, and TAP makes the voice follow the pattern. The view closes after about 2 s (5 × WINDOW TIMER14 ticks) with nothing changed. After each press the view shows the new length and stays for another 2 s, as it stays while the button is held. NEWHOLD, at p_plain's HELD store (`0x0800D11E`), starts each hold with nothing chosen and the view not latched, and SET marks the hold as chosen and restarts a latched view's 2 s. A length set while holding, or a short press, closes as in v1.3.
+- **RAM.** LATCHED, CHOSEN and LATCH_T at `0x20002158`–`0x2000215F`, and LOADED, FAILS, DIRTY and CACHE at `0x20002160`–`0x20002267`, follow v1.3's state. v1.2's start-up clear of `0x20002000` grows from `0x158` to `0x268` bytes.
 
-v1.4 differs from the MIDI step only at the sites and in the new code. The MIDI routines are unchanged, and so are v1.3's apart from set_length's store. The longest blank run is 85 blocks.
+v1.4.1 differs from the MIDI step only at the sites and in the new code. The MIDI routines are unchanged, and so are v1.3's apart from set_length's store and the two PANEL sites. The longest blank run is 84 blocks.
 
 `source/check_saved_lengths.py` runs the actual bytes against a model of the EEPROM. The two EEPROM routines become stubs that read or write the model, writes wrap inside a 64-byte page, and the rest of the stock code runs as it is. It checks:
 
 - The stock audit above: the list of EEPROM calls, and six stock pattern paths (load, SysEx read and restore, the playing pattern's save, the tidy-up's save, factory reset) run on the model with every slot's bytes 22–63 left as they were.
 - Start-up over 200 random EEPROMs: one read per slot and no writes, valid records cached, and wrong tags, lengths over 16, wrong checks, blank and random bytes all read as no saved lengths.
 - 300 pattern loads beside the MIDI build: the same EEPROM traffic and RAM, apart from LEN, which gets the new pattern's lengths once CACHE is ready.
-- Every v1.3 button gesture; setting and clearing lengths for valid and invalid slots; and 3,000 random panel ticks that match the MIDI build apart from the new state.
+- Every v1.3 button gesture; setting and clearing lengths for valid and invalid slots; 3,000 random panel ticks that match the MIDI build apart from the new state (with a length already chosen, so letting go closes the view as before); and 14 length-view gestures: each voice taking its own button's length, another voice's button or a step 9–16 setting it, TAP, the timeout, a length set while holding, a short press, and leaving the mode.
 - Saves: with nothing marked, the main loop's saves match the MIDI build in 150 random states; marked slots are written one per save and read back (228 records); a write that doesn't stick is retried at the next 3 saves, then dropped.
 - 40 random sessions of lengths set on random patterns, pattern changes and saves, then a power cycle: every pattern gets its lengths back, and no pattern byte changes.
 - The light builder in 2,000 random states of every mode, playing or not, beside the MIDI build: the same lights and RAM, except the 315 states in Pattern Write with a voice of its own length selected, where the lights are exactly that voice's steps up to its length with the running light on the step it last played.
 
-The browser checks install v1.4 on the simulated RD-6 (378 ACKs, the exact pinned stream), save its `.syx`, and refuse a modified patch before anything is sent. While it was a test build they also covered its option: unticked by default, and ticking it cleared the MIDI one and the other way round.
+The browser checks install v1.4.1 on the simulated RD-6 (378 ACKs, the exact pinned stream), save its `.syx`, and refuse a modified patch before anything is sent. While it was a test build they also covered its option: unticked by default, and ticking it cleared the MIDI one and the other way round.
 
 ## How Scatter is distributed
 
-A build is published as a patch (`outputs/scatter-v1.4.patch.json`, format `rd6-syx-replacements-v1`): a list of byte runs that replace parts of the official 1.0.5 SysEx file. The updater and `scripts/apply_patch.py` apply it on the user's computer and accept the result only if its SHA-256 matches the pinned build hash.
+A build is published as a patch (`outputs/scatter-v1.4.1.patch.json`, format `rd6-syx-replacements-v1`): a list of byte runs that replace parts of the official 1.0.5 SysEx file. The updater and `scripts/apply_patch.py` apply it on the user's computer and accept the result only if its SHA-256 matches the pinned build hash.
 
 The repository includes Behringer's original 1.0.5 and 1.0.6 SysEx update files, mirrored without modification ([PROVENANCE.json](../firmware/PROVENANCE.json)). It does not include decrypted firmware images, device dumps, vendor service credentials or raw transfer logs. The public history starts clean; earlier research history is private.
 
-The update file is 5 setup frames, a header and 377 data frames. The data frames carry the image XOR a repeating 128-byte mask, 7-bit packed: each group's first byte holds the top bits of the next seven bytes. The header stores the image size (bytes 10–13) and the 32-bit sum of all image bytes (bytes 14–17), each as four 7-bit digits, low digit first. The updater recovers the mask from the longest run of identical 128-byte blocks and needs at least 64. Official files have 100 or more and Scatter v1.4 keeps 85 (v1.3 kept 92, the MIDI step 90). Every build must keep at least 64.
+The update file is 5 setup frames, a header and 377 data frames. The data frames carry the image XOR a repeating 128-byte mask, 7-bit packed: each group's first byte holds the top bits of the next seven bytes. The header stores the image size (bytes 10–13) and the 32-bit sum of all image bytes (bytes 14–17), each as four 7-bit digits, low digit first. The updater recovers the mask from the longest run of identical 128-byte blocks and needs at least 64. Official files have 100 or more and Scatter v1.4.1 keeps 84 (v1.3 kept 92, the MIDI step 90, v1.4 85). Every build must keep at least 64.
 
 Build a Scatter file without a browser:
 
 ```bash
-python scripts/apply_patch.py firmware/RD-6_V1.0.5.syx /path/to/RD6_Scatter_v1.4.syx
+python scripts/apply_patch.py firmware/RD-6_V1.0.5.syx /path/to/RD6_Scatter_v1.4.1.syx
 ```
 
 Add `--build scatter-v1.3` for the older v1.3, or `--build scatter-v1.3-midi-test` for the MIDI step.
@@ -222,7 +223,7 @@ The backup (`rd6-patterns-settings-backup-v1`) stores each pattern as 1-based `g
 
 ### File checks and pinning
 
-Every image is parsed before use: 383 frames, the RD-6 prefix on every frame, the setup and header commands, data block counters 0–376 in order, the unpacked size against the header, the header model strings, recovery of the XOR mask, plausible Cortex-M vectors for the GD32F350 (16 KB SRAM, 128 KB flash) and, for pinned files, the SHA-256 of the decoded image. Pinned files are official 1.0.5 and 1.0.6, Scatter v1.4, the older Scatter v1.3, the MIDI extra-hit test build, v1.2, v1 and TEST12, and two older test builds. A withdrawn test build (TEST02) is always refused. Any other structurally valid file needs the user to type the first 8 hex digits of its SHA-256.
+Every image is parsed before use: 383 frames, the RD-6 prefix on every frame, the setup and header commands, data block counters 0–376 in order, the unpacked size against the header, the header model strings, recovery of the XOR mask, plausible Cortex-M vectors for the GD32F350 (16 KB SRAM, 128 KB flash) and, for pinned files, the SHA-256 of the decoded image. Pinned files are official 1.0.5 and 1.0.6, Scatter v1.4.1, the older Scatter v1.4, v1.3, the MIDI extra-hit test build, v1.2, v1 and TEST12, and two older test builds. A withdrawn test build (TEST02) is always refused. Any other structurally valid file needs the user to type the first 8 hex digits of its SHA-256.
 
 ### Simulator
 
@@ -240,7 +241,7 @@ Then open `http://localhost:8000/outputs/rd6_webmidi_uploader.html`.
 
 ## Scatter status report
 
-Scatter answers **CC 112, value 0** on the RD-6's MIDI receive channel with 13 MIDI messages over USB, all Polyphonic Key Pressure on channel 7 (status `A6`). The note number is the field index and the pressure value is the field. Field 0 is the build marker: 12 for every Scatter build since TEST12, v1.4 included. Fields 1–12 are layer, direction, latch, selection, active effect, pattern selector, playing, clock step, source step, last key, snapshot valid and effective direction (`source/rd6_glitch_status.ll`).
+Scatter answers **CC 112, value 0** on the RD-6's MIDI receive channel with 13 MIDI messages over USB, all Polyphonic Key Pressure on channel 7 (status `A6`). The note number is the field index and the pressure value is the field. Field 0 is the build marker: 12 for every Scatter build since TEST12, v1.4.1 included. Fields 1–12 are layer, direction, latch, selection, active effect, pattern selector, playing, clock step, source step, last key, snapshot valid and effective direction (`source/rd6_glitch_status.ll`).
 
 ## Why there is no real firmware readback
 
@@ -261,7 +262,7 @@ The diagnostic doesn't help with a first install either, because custom code has
 - **Scatter v1.2.** `python -I source/build_scatter_v1_2.py` rebuilds the v1.2 patch from v1 and confirms it matches `source/scatter-v1.2.patch.json` byte for byte. `python -I source/check_scatter_v1_2.py` runs the step-light and Pattern Write checks described in [What v1.2 changes](#what-v12-changes). Both decode in memory only.
 - **Scatter v1.3.** `python -I source/build_scatter_v1_3.py` rebuilds the patch from v1.2 and confirms it matches `source/scatter-v1.3.patch.json`. `python -I source/check_scatter_v1_3.py` runs the checks described in [What v1.3 changes](#what-v13-changes).
 - **MIDI extra hits.** `python -I source/build_midi_extra.py` rebuilds the patch from v1.3 and confirms it matches `source/scatter-v1.3-midi-test.patch.json`. `python -I source/check_midi_extra.py` runs the checks described in [MIDI extra hits](#midi-extra-hits); add `--mutations` for the broken-build checks. `source/assemble_midi_extra.py` regenerates the routines' bytes and needs keystone (development only).
-- **Scatter v1.4.** `python -I source/build_saved_lengths.py` rebuilds the patch from the MIDI step and confirms it matches `outputs/scatter-v1.4.patch.json`. `python -I source/check_saved_lengths.py` runs the checks described in [Saved lengths and the Pattern Write display](#saved-lengths-and-the-pattern-write-display). `source/assemble_saved_lengths.py` regenerates the routines' bytes (keystone, development only).
+- **Scatter v1.4.1.** `python -I source/build_saved_lengths.py` rebuilds the patch from the MIDI step and confirms it matches `outputs/scatter-v1.4.1.patch.json`. `python -I source/check_saved_lengths.py` runs the checks described in [Saved lengths and the Pattern Write display](#saved-lengths-and-the-pattern-write-display). `source/assemble_saved_lengths.py` regenerates the routines' bytes (keystone, development only).
 - **Updater.** Install Playwright and Chromium (`npm install playwright`, then `npx playwright install chromium`) and run `node outputs/check_rd6_webmidi_uploader.cjs` and `node outputs/check_rd6_automatic_workflow.cjs`. Set `RD6_CHROME_PATH` to use an installed Chrome and `RD6_SCREENSHOT_DIR` to save screenshots. Both use simulated MIDI only.
 
 ## Test results
@@ -275,6 +276,7 @@ The diagnostic doesn't help with a first install either, because custom code has
 - **Scatter v1.2**: offline checks ([SCATTER_V1_2.json](../checks/SCATTER_V1_2.json)). Installed and played on the test unit on 2026-10-17: the step lights follow the played step, Scatter stays on through Pattern Write while the step buttons program normally there, and Scatter's controls work again back in Pattern Play.
 - **Scatter v1.3**: offline checks ([SCATTER_V1_3.json](../checks/SCATTER_V1_3.json)). Installed from the public updater as the test build and played on the test unit on 2026-10-17: the user reported that mute and roll mode, the roll rates, the loop length per voice and the mode's step lights all work.
 - **MIDI extra hits** (offered as a test build): offline checks ([SCATTER_MIDI_TEST.json](../checks/SCATTER_MIDI_TEST.json)) and a simulated install. Installed from a local copy of the updater on its branch and played on the test unit on 2026-10-18: the user reported that it works.
+- **Scatter v1.4.1**: offline checks ([SCATTER_V1_4_1.json](../checks/SCATTER_V1_4_1.json)) and a simulated install. Installed from a local copy of the updater and played on the test unit on 2026-10-23: the user reported that it works, with voices taking their own button's length and the lights showing the new length.
 - **Scatter v1.4**: offline checks ([SCATTER_V1_4.json](../checks/SCATTER_V1_4.json)) and a simulated install. Installed from a local copy of the updater as the saved lengths test build, with the Pattern Write display, and played on the test unit on 2026-10-18: the user reported that it works great.
 - **Updater, simulated**: [UPLOADER_SIMULATOR.json](../checks/UPLOADER_SIMULATOR.json) and [AUTOMATIC_WORKFLOW.json](../checks/AUTOMATIC_WORKFLOW.json).
 - **Other offline checks**: `checks/RD6_SCATTER_TEST12_*.json`.
@@ -284,6 +286,6 @@ The diagnostic doesn't help with a first install either, because custom code has
 - External clock, chaining, worst-case interrupt timing and RAM liveness are unmeasured.
 - An earlier fast-tempo Ratchet glitch is unresolved.
 - Before v1.4, extra Roll and Ratchet hits and the 1/32 roll's second hit were analog-only: the timer interrupt that plays them can preempt the stock MIDI output queue mid-update (`source/rd6_stock_bridge_1_0_5.ll`). v1.4 serializes the queue and sends them. MIDI timing and MIDI OUT bandwidth haven't been measured.
-- v1.4 writes EEPROM while patterns play, as the stock firmware does for pattern edits. Its bit-banged I2C code has no lock, so a timer's pattern load can cut into a save. Saves are read back and retried, but the timing at such a moment hasn't been measured.
+- v1.4.1 writes EEPROM while patterns play, as the stock firmware does for pattern edits. Its bit-banged I2C code has no lock, so a timer's pattern load can cut into a save. Saves are read back and retried, but the timing at such a moment hasn't been measured.
 - There is no flash readback, and recovery after an interrupted flash isn't guaranteed: restoring needs a working update mode.
 - Offline checks run selected code paths; there is no full MCU emulation.

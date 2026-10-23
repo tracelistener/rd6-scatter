@@ -195,8 +195,8 @@ footer { color: var(--muted); font-size: 14px; margin-top: 18px; }
     </div>
 
     <h3>Firmware files</h3>
-    <div class="row"><button id="saveScatter">Save Scatter v1.4 as a .syx file</button></div>
-    <p class="hint">Builds Scatter v1.4 on this computer from the official 1.0.5 file and saves it. Official files: <a href="../firmware/RD-6_V1.0.6.syx" download>1.0.6</a> · <a href="../firmware/RD-6_V1.0.5.syx" download>1.0.5</a>.</p>
+    <div class="row"><button id="saveScatter">Save Scatter v1.4.1 as a .syx file</button></div>
+    <p class="hint">Builds Scatter v1.4.1 on this computer from the official 1.0.5 file and saves it. Official files: <a href="../firmware/RD-6_V1.0.6.syx" download>1.0.6</a> · <a href="../firmware/RD-6_V1.0.5.syx" download>1.0.5</a>.</p>
     <div id="fileStatus" class="status idle">No firmware prepared yet.</div>
     <ul id="fileChecks" class="checks"></ul>
 
@@ -295,7 +295,9 @@ const PINNED = {
   '75f9f392a228ac50779d2dd0107db2d716a6fa95e8ea5d5d9aab7fe9ae70edc2':
     { name: 'Scatter v1.3 MIDI extra-hit test build (older test build: Roll, Ratchet and 1/32 roll repeats on MIDI out)', bin: 'ac0fa39bce04bae0b1279c640df03871d6990c1fb589ca1bbf4d1056dc6f5f9f', allowed: true, label: 'Scatter v1.3 MIDI extra-hit (older test build)', kind: 'scatter' },
   'f3dd4beca4ebc75d7518b2dac19c3944a32dffde7239438044225b0a61ec9048':
-    { name: 'Scatter v1.4 (v1.3 plus Roll, Ratchet and 1/32 roll repeats on MIDI out, and each voice\'s length saved with its pattern and shown in Pattern Write)', bin: 'de68d77e7ee9639730257e37be6fb31dceb3217bed651ef0ba6e3c8cf5d5138d', allowed: true, label: 'Scatter v1.4', kind: 'scatter' },
+    { name: 'Scatter v1.4 (older build: v1.3 plus Roll, Ratchet and 1/32 roll repeats on MIDI out, and each voice\'s length saved with its pattern and shown in Pattern Write)', bin: 'de68d77e7ee9639730257e37be6fb31dceb3217bed651ef0ba6e3c8cf5d5138d', allowed: true, label: 'Scatter v1.4 (older build)', kind: 'scatter' },
+  '85a82682af14807ef7c6754ec9a828b0588d5483cdae6b377e087e79a4b9fdf2':
+    { name: 'Scatter v1.4.1 (v1.4 with a length view that stays after you let go of the voice\'s button)', bin: '0af3718b11b581d4d2996c5856484035986449987e0aea236c1c4a97049db55e', allowed: true, label: 'Scatter v1.4.1', kind: 'scatter' },
   '4446914dffce8152dc7f7c0065de52d266f062a6499a22a8fef36b221982cfc3':
     { name: 'Stock RD-6 1.0.6', bin: 'e20968a504ccf4302039cb99cfe647acab4f8bd12515b87a8828fd61a46d1656', allowed: true, label: 'Official firmware 1.0.6', kind: 'official' },
   '9bc1c3a74da476c6694724314d275030a7debb4299c561d06cf56f4e55b540ef':
@@ -312,9 +314,9 @@ const PINNED = {
 const STOCK_SHA = '29fc1fb89a951a864e294764d2fe8bba4ad1ce890f9c308f09944749321571eb';      // official 1.0.5: Scatter patch input
 const STOCK106_SHA = '4446914dffce8152dc7f7c0065de52d266f062a6499a22a8fef36b221982cfc3';   // official 1.0.6: default restore
 const OFFICIAL = { '1.0.5': STOCK_SHA, '1.0.6': STOCK106_SHA };
-// Scatter v1.4: v1.3 plus Roll, Ratchet and 1/32 roll repeats on MIDI out (source/build_midi_extra.py) and each
-// voice's length saved with its pattern and shown in Pattern Write (source/build_saved_lengths.py).
-const SCATTER = { id: 'SCATTER_V1_4', label: 'Scatter v1.4', patch: 'scatter-v1.4.patch.json', sha: 'f3dd4beca4ebc75d7518b2dac19c3944a32dffde7239438044225b0a61ec9048', file: 'RD6_Scatter_v1.4.syx',
+// Scatter v1.4.1: v1.3 plus Roll, Ratchet and 1/32 roll repeats on MIDI out (source/build_midi_extra.py) and each
+// voice's length saved with its pattern, shown in Pattern Write and easier to set (source/build_saved_lengths.py).
+const SCATTER = { id: 'SCATTER_V1_4_1', label: 'Scatter v1.4.1', patch: 'scatter-v1.4.1.patch.json', sha: '85a82682af14807ef7c6754ec9a828b0588d5483cdae6b377e087e79a4b9fdf2', file: 'RD6_Scatter_v1.4.1.syx',
   tryIt: 'Try it: start a pattern in PATTERN PLAY, hold FUNCTION and press TAP, press step button 1 (Roll), then hold TAP. For mute and roll mode, double-click FUNCTION: the voice lengths you set there are saved with the pattern.' };
 const BACKUP_FORMAT = 'rd6-firmware-file-backup-v1';
 const BACKUP_KINDS = ['official-download-not-device-dump', 'user-supplied-file-not-device-dump'];
@@ -408,7 +410,7 @@ async function analyse(bytes) {
     ok(ascii === 'P0E4G·RD-6·', `header model strings "P0E4G" and "RD-6": ${ascii}`);
     version = Array.from(h.subarray(29, 32)).join('.');
     // XOR mask: longest run of identical 128-byte blocks (decrypt_rd6.longest_repeated_block_run).
-    // Official files have 100 or more; Scatter v1.4 keeps 85.
+    // Official files have 100 or more; Scatter v1.4.1 keeps 84.
     const n = Math.floor(clearRaw.length / 128); let best = [0, 0], start = 0;
     const same = (a, b) => { for (let k = 0; k < 128; k++) if (clearRaw[a * 128 + k] !== clearRaw[b * 128 + k]) return false; return true; };
     for (let i = 1; i <= n; i++) { if (i < n && same(i, start)) continue; if (i - start > best[1]) best = [start, i - start]; start = i; }

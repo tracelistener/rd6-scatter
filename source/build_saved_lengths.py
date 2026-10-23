@@ -1,6 +1,6 @@
-"""Build Scatter v1.4, outputs/scatter-v1.4.patch.json: the MIDI
-extra-hit build plus each voice's length saved with its pattern and shown in Pattern Write
-(source/saved_lengths.py).
+"""Build Scatter v1.4.1, outputs/scatter-v1.4.1.patch.json: the MIDI
+extra-hit build plus each voice's length saved with its pattern, shown in Pattern Write and
+easier to set (source/saved_lengths.py).
 
 Decoding stays in memory; the only file written is the patch, as byte runs on the official
 1.0.5 SysEx file. The new code follows the MIDI routines from 0x0800D300.
@@ -14,7 +14,7 @@ from apply_patch import apply
 import saved_lengths as L
 import mute_roll as V
 
-OUT = HERE / 'outputs/scatter-v1.4.patch.json'
+OUT = HERE / 'outputs/scatter-v1.4.1.patch.json'
 MIDI = HERE / 'source/scatter-v1.3-midi-test.patch.json'
 
 
@@ -27,7 +27,7 @@ def build(stock):
     end = L.START
     for name in L.ORDER:
         at, code = L.ADDRESS[name], L.BODY[name]
-        assert at >= end and at % 4 == 0 and at + len(code) <= 0x0800D580, f"{name} is outside its blocks"
+        assert at >= end and at % 4 == 0 and at + len(code) <= 0x0800D600, f"{name} is outside its blocks"
         assert set(image[at - BASE:at - BASE + len(code)]) == {0}, f'{name} space is not free'
         V.SOURCE['LEN_' + name] = L.listing(name, L.ADDRESS['APPLY'])
         assert not V.check_branches('LEN_' + name, at, code), f'{name} branches differ from the listing'
