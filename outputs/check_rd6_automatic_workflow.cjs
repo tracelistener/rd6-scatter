@@ -10,7 +10,7 @@ const { chromium } = require('playwright');
 const ROOT = path.resolve(__dirname, '..');
 const sha = b => crypto.createHash('sha256').update(b).digest('hex');
 const SHA106 = '4446914dffce8152dc7f7c0065de52d266f062a6499a22a8fef36b221982cfc3';
-const SCATTER_V1_4 = 'f3dd4beca4ebc75d7518b2dac19c3944a32dffde7239438044225b0a61ec9048';
+const SCATTER_V1_4_1 = '85a82682af14807ef7c6754ec9a828b0588d5483cdae6b377e087e79a4b9fdf2';
 let checks = 0;
 function check(name, pass) { if (!pass) throw new Error('FAIL ' + name); console.log('PASS ' + name); checks++; }
 
@@ -69,7 +69,7 @@ function fakeMidi(ports) {
     let page = await open([{ name: 'Other Synth' }, { name: 'RHYTHM DESIGNER RD-6 MIDI 1', version: '1.0.6' }]);
     check('no MIDI access requested before Connect', await page.evaluate(() => window.__midiRequests === 0));
     check('install blocked before connecting', await page.isDisabled('#start') && /Connect your RD-6 first/.test(await txt(page, '#startHint')));
-    check('only Scatter v1.4 is offered, with no build to choose', await page.$('input[name=build]') === null && await page.$('#useTestBuild') === null &&
+    check('only Scatter v1.4.1 is offered, with no build to choose', await page.$('input[name=build]') === null && await page.$('#useTestBuild') === null &&
       await page.$('#useV13') === null && await page.$('#useMidiTest') === null && await page.$('#useLengthsTest') === null);
     await page.click('#connect'); await idle(page);
     check('port found automatically and official 1.0.6 identified', await page.inputValue('#portName') === 'RHYTHM DESIGNER RD-6 MIDI 1' &&
@@ -114,23 +114,23 @@ function fakeMidi(ports) {
       !/unplug/.test(await txt(page, '#xferStatus')));
     await page.close();
 
-    // C. Simulated RD-6 on 1.0.6: Scatter v1.4 install end to end, plus the .syx file from Advanced.
+    // C. Simulated RD-6 on 1.0.6: Scatter v1.4.1 install end to end, plus the .syx file from Advanced.
     page = await simPage(() => { Sim.version = '1.0.6'; });
     await download(page, '#saveBackup'); await page.check('#backupSaved'); await page.check('#understand');
     await start(page);
-    check('Scatter v1.4 installs with 378 ACKs and the exact pinned image stream', await page.evaluate(() => S.image.hash) === SCATTER_V1_4 &&
+    check('Scatter v1.4.1 installs with 378 ACKs and the exact pinned image stream', await page.evaluate(() => S.image.hash) === SCATTER_V1_4_1 &&
       await page.evaluate(() => S.events.filter(e => e.event === 'firmware_ack').length === 378 && S.events.some(e => e.event === 'sim_stream_check' && e.byte_exact)) &&
-      /^Done! Scatter v1\.4 is installed/.test(await txt(page, '#xferStatus')) && /saved with the pattern/.test(await txt(page, '#xferStatus')));
+      /^Done! Scatter v1\.4\.1 is installed/.test(await txt(page, '#xferStatus')) && /saved with the pattern/.test(await txt(page, '#xferStatus')));
     const t14 = await download(page, '#saveScatter');
-    check('Scatter v1.4 .syx saved from Advanced has the pinned checksum', sha(t14.bytes) === SCATTER_V1_4 && t14.name === 'RD6_Scatter_v1.4.syx');
+    check('Scatter v1.4.1 .syx saved from Advanced has the pinned checksum', sha(t14.bytes) === SCATTER_V1_4_1 && t14.name === 'RD6_Scatter_v1.4.1.syx');
     await page.close();
 
     // C2. A modified patch is refused before anything reaches the RD-6.
     page = await simPage(() => { Sim.version = '1.0.6'; });
     await download(page, '#saveBackup'); await page.check('#backupSaved'); await page.check('#understand');
-    const badPatch = JSON.parse(fs.readFileSync(path.join(ROOT, 'outputs/scatter-v1.4.patch.json')));
+    const badPatch = JSON.parse(fs.readFileSync(path.join(ROOT, 'outputs/scatter-v1.4.1.patch.json')));
     badPatch.runs[badPatch.runs.length - 1][1] = Buffer.from([0]).toString('base64');
-    await page.route('**/scatter-v1.4.patch.json', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(badPatch) }));
+    await page.route('**/scatter-v1.4.1.patch.json', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(badPatch) }));
     await start(page);
     check('a modified Scatter patch is refused before anything is sent', /hash mismatch/.test(await txt(page, '#xferStatus')) &&
       /Nothing was sent to your RD-6/.test(await txt(page, '#xferStatus')) && await page.evaluate(() => !S.events.some(e => e.event === 'tx')));

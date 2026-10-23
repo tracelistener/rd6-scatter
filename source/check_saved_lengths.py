@@ -1,4 +1,4 @@
-"""Offline checks for Scatter v1.4's saved lengths (source/saved_lengths.py), on the MIDI extra-hit build.
+"""Offline checks for Scatter v1.4.1's saved lengths (source/saved_lengths.py), on the MIDI extra-hit build.
 
 The actual bytes run in source/rd6_thumb_machine.py against a model of the RD-6's 32 KB
 I2C EEPROM: the two stock EEPROM routines (read 0x0800381C, write 0x0800383A) are replaced
@@ -19,7 +19,9 @@ and no hardware is used.
    the loaded pattern given its lengths.
 4. Pattern loads: the stock load routine (0x08003630) does exactly what it does in the
    MIDI build, plus the new pattern's lengths in LEN once the cache is ready.
-5. Buttons: every v1.3 gesture still works; setting a length also stores it for the
+5. Buttons: every v1.3 gesture still works; a length view stays after its voice's button
+   is let go until a step or TAP sets the length or about 2 s pass; setting a length also
+   stores it for the
    playing pattern and marks that slot; the Pattern Play buttons in 3,000 random cases
    match the MIDI build apart from that.
 6. Saving: with nothing marked the main loop's save matches the MIDI build; marked slots
@@ -56,7 +58,7 @@ I2C_READ, I2C_WRITE = 0x08003E68, 0x080040F4
 DELAY_MS = 0x08003186                                # busy-wait, after each EEPROM write and in the save loops
 STUBS = (L.EEPROM_READ, L.EEPROM_WRITE, DELAY_MS, LOAD_TAIL, SAVER_TAIL, L.LAST_INIT)
 LEN_AT = V.ST + V.LEN + 1                            # LEN[1..8], BD..CH
-STATE = set(range(V.ST + L.LOADED - 0x20000000, V.ST + L.END - 0x20000000))
+STATE = set(range(V.ST + L.LATCHED - 0x20000000, V.ST + L.END - 0x20000000))
 SLOTS = [s * 64 for s in range(32)]
 md = Cs(CS_ARCH_ARM, CS_MODE_THUMB | CS_MODE_MCLASS)
 md.detail = True
@@ -230,6 +232,8 @@ def check_bytes(midi, image):
             if module is V and name == 'PANEL':
                 i = L.SET_LENGTH_STORE - at
                 now[i:i + 4] = bytes.fromhex('80f82c10')
+                for site, original in ((L.LATCH_SITE, '0bebc600'), (L.HOLD_SITE, '87f82730')):
+                    now[site - at:site - at + 4] = bytes.fromhex(original)
             if module is V and name == 'TICK':
                 i = X.MID_SITE - at
                 now[i:i + 4] = bytes.fromhex('15202860')
@@ -430,6 +434,7 @@ def check_panel(midi, image, rng):
             m.set_st(V.MUTEMODE, r.choice((0, 1))); m.set_st(V.HELD, r.choice((0, 0, 3, 7)))
             m.set_st(V.HELD_T, r.getrandbits(8), 4); m.set_st(V.TICK, 5000, 4)
             m.poke(L.SLOT_ADDRESS, r.randrange(32) * 64, 2); m.set_st(L.LOADED, 1)
+            m.set_st(L.CHOSEN, 1)   # a length already chosen: letting go closes the view, as before
             exit_pc = C.panel(m, keys, mode, playing, busy)
             results.append((exit_pc, bytes(m.ram.data)))
         (e1, r1), (e2, r2) = results
@@ -572,6 +577,95 @@ def check_round_trips(image, rng):
     return cases
 
 
+def check_latch(image):
+    """The length view stays after the voice's button is let go: any step, the voice's own
+    button included, sets the length and TAP makes it follow the pattern; the view then
+    shows the new length and closes TIMEOUT after the last press. A length set while
+    holding, or a short press, closes it on letting go, as in v1.3."""
+    F, TAP, step = V.KEY_FUNCTION, V.KEY_TAP, lambda k: V.KEY_STEP1 + k - 1
+    slot = 9
+    p = Panel(image)
+    p.m.poke(L.SLOT_ADDRESS, slot * 64, 2); p.m.set_st(L.LOADED, 1)
+    p.click(F, gap=4000); p.click(F, gap=300)
+    assert p.st(V.MUTEMODE) == 1
+    cases = 0
+
+    def lights(voice):
+        """The length view: steps 1 to the voice's length (or the pattern's)."""
+        return (1 << (p.st(V.LEN + voice) or 16)) - 1
+
+    def show(voice):
+        """Hold a voice until its length shows, then let go."""
+        p.press(step(voice)); p.run(advance=V.WINDOW)
+        assert p.st(V.DISPLAY, 2) == lights(voice)
+        p.release(step(voice))
+
+    def showing(voice):
+        return p.st(L.LATCHED) == 1 and p.st(V.HELD) == step(voice) and p.st(V.DISPLAY, 2) == lights(voice)
+
+    def closed():
+        return p.st(V.HELD) == 0 and p.st(L.LATCHED) == 0 and p.st(V.DISPLAY, 2) == (~p.st(V.MUTES, 2) >> 1 & 0xFF) | (p.st(V.ROLLS, 2) >> 1 & 0xFF) << 8
+
+    def time_out():
+        p.run(advance=L.TIMEOUT + 100)
+        assert closed()
+
+    # Each voice can now take its own button's length, and the lights show it.
+    for voice in range(1, 9):
+        show(voice)
+        assert showing(voice), 'the view stays after letting go'
+        p.press(step(voice))
+        assert C.key(p.m, step(voice)) == 7 and p.st(V.LEN + voice) == voice and p.st(V.MUTES, 2) == 0, voice
+        assert p.st(L.CACHE + 8 * slot + voice - 1) == voice and p.st(L.DIRTY, 4) >> slot & 1
+        assert showing(voice) and p.st(V.DISPLAY, 2) == (1 << voice) - 1, 'the new length shows'
+        p.release(step(voice))
+        assert showing(voice)
+        time_out()
+        assert p.st(V.LEN + voice) == voice
+        cases += 1
+    # Further presses change it again, each restarting the time; another voice's button or a
+    # step 9-16 sets the length, not a mute or a roll.
+    show(2); p.press(step(7)); p.release(step(7))
+    assert p.st(V.LEN + 2) == 7 and p.st(V.MUTES, 2) == 0 and showing(2)
+    p.run(advance=L.TIMEOUT - 300)
+    p.press(step(13)); p.release(step(13))
+    assert p.st(V.LEN + 2) == 13 and p.st(V.ROLLS, 2) == 0 and showing(2)
+    p.run(advance=L.TIMEOUT - 300)
+    assert showing(2), 'the time restarts at each press'
+    time_out()
+    # TAP makes the voice follow the pattern again; the view then shows the pattern's length.
+    show(4); p.press(TAP)
+    assert p.st(V.LEN + 4) == 0 and C.key(p.m, TAP) == 7 and p.st(L.LATCHED) == 1
+    p.release(TAP)                    # while TAP is held the lights show the roll rate, as in v1.3
+    assert showing(4) and p.st(V.DISPLAY, 2) == 0xFFFF
+    time_out()
+    # It closes by itself with nothing changed when nothing is pressed.
+    show(3)
+    p.run(advance=L.TIMEOUT - 200)
+    assert showing(3)
+    p.run(advance=300)
+    assert closed() and p.st(V.LEN + 3) == 3
+    p.press(step(3)); p.release(step(3))
+    assert p.st(V.MUTES, 2) == 1 << 3 and p.st(V.LEN + 3) == 3, 'after it closes, the button mutes again'
+    p.press(step(3)); p.release(step(3))
+    assert p.st(V.MUTES, 2) == 0
+    # A length set while holding, or a short press: letting go closes the view as before.
+    p.press(step(5)); p.run(advance=V.WINDOW); p.press(step(11)); p.release(step(11))
+    assert p.st(V.LEN + 5) == 11 and p.st(V.HELD) == step(5) and p.st(V.DISPLAY, 2) == lights(5)
+    p.release(step(5))
+    assert closed()
+    p.press(step(6)); p.release(step(6))
+    assert closed() and p.st(V.MUTES, 2) == 1 << 6, 'a short press mutes, as before'
+    p.press(step(6)); p.release(step(6))
+    # Leaving the mode while the view shows closes it.
+    show(8); p.press(step(4)); p.release(step(4))
+    assert showing(8)
+    p.click(F, gap=300); p.click(F, gap=300)
+    assert p.st(V.MUTEMODE) == 0 and p.st(V.HELD) == 0
+    cases += 6
+    return cases
+
+
 # ---------------------------------------------------------------- Pattern Write's lights
 
 LIGHTS, LIGHT_LOOP, LED_WORD, LED_TABLE = 0x0800641C, 0x08006502, 0x20000A38, 0x0800AE9C
@@ -673,7 +767,7 @@ def main():
     assert apply(stock_syx, json.loads(OUT.read_text())) == syx, 'the published patch is the build'
     changed, run = check_bytes(midi, image)
     report = {
-        'build': 'SCATTER_V1_4',
+        'build': 'SCATTER_V1_4_1',
         'syx_sha256': hashlib.sha256(syx).hexdigest(),
         'image_sha256': hashlib.sha256(image).hexdigest(),
         'bytes_changed_from_midi_test': changed,
@@ -684,9 +778,10 @@ def main():
         'panel_cases': check_panel(midi, image, rng),
         'save_cases_and_records_written': check_saves(midi, image, rng),
         'round_trip_sessions': check_round_trips(image, rng),
+        'latch_gestures': check_latch(image),
         'light_cases_and_own_length_displays': check_lights(midi, image, rng),
         'bounds': check_bounds(image),
-        'status': 'passed_scatter_v1_4',
+        'status': 'passed_scatter_v1_4_1',
     }
     print(json.dumps(report, indent=2))
 
